@@ -1,6 +1,6 @@
 
 const express = require('express')
-var { MongoClient } = require('mongodb');
+var { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config()
 
 const app = express()
@@ -91,7 +91,7 @@ app.post('/nearevents', async (req, res) => {
                 }
             }
         }).limit(8).toArray()
-        
+
         res.status(200).send({ "success": true, "data": near_events })
 
     } catch (error) {
@@ -115,10 +115,11 @@ app.post('/searchevents', async (req, res) => {
                 }
             }
         }
-        req.body.name != null ? parameters.name = {$regex : req.body.name} : null
+        req.body.start != null ? parameters.start = { $gte: (new Date(req.body.start)).toISOString() } : null
+        req.body.name != null ? parameters.name = { $regex: req.body.name } : null
         req.body.genres != null ? parameters.genres = { $in: req.body.genres } : null
         
-        const searched_events = await client.db('needfy').collection('events').find(parameters).sort( { "start": -1 } ).limit(8).toArray()
+        const searched_events = await client.db('needfy').collection('events').find(parameters).sort({ "start": -1 }).limit(8).toArray()
         res.status(200).send({ "success": true, "data": searched_events })
 
     } catch (error) {
@@ -143,6 +144,78 @@ app.post('/nearclubs', async (req, res) => {
             }
         }).limit(8).toArray()
         res.status(200).send({ "success": true, "data": near_clubs })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+app.get('/organizerbyid', async (req, res) => {
+    try {
+
+        var organizer = await client.db('needfy').collection('organizers').findOne({
+            _id: ObjectId(req.query._id)
+        })
+        res.status(200).send({ "success": true, "data": organizer })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/eventbyid', async (req, res) => {
+    try {
+
+        console.log(req.query)
+
+        var event = await client.db('needfy').collection('events').findOne({
+            _id: ObjectId(req.query._id)
+        })
+        res.status(200).send({ "success": true, "data": event })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/clubbyid', async (req, res) => {
+    try {
+
+        var club = await client.db('needfy').collection('clubs').findOne({
+            _id: ObjectId(req.query._id)
+        })
+        res.status(200).send({ "success": true, "data": club })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/userbyid', async (req, res) => {
+    try {
+        var user = await client.db('needfy').collection('users').findOne({
+            _id: ObjectId(req.query._id)
+        })
+        res.status(200).send({ "success": true, "data": user })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.post('/edituser', async (req, res) => {
+    const params = {...req.body};
+    delete params._id;
+    
+    try {
+        await client.db('needfy').collection('users').updateOne({
+            _id: ObjectId(req.body._id)
+        }, { $set: params }, { upsert: false })
+        res.status(200).send({ "success": true })
 
     } catch (error) {
         console.log(error)
