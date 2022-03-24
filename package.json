@@ -12,7 +12,8 @@
   "dependencies": {
     "bcrypt": "^5.0.1",
     "express": "^4.17.3",
-    "mongodb": "^4.4.0"
+    "mongodb": "^4.4.0",
+    "neo4j-driver": "^4.4.3"
   },
   "devDependencies": {
     "dotenv": "^16.0.0",
