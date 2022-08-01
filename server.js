@@ -26,8 +26,8 @@ var driver = neo4j.driver(
 const session = driver.session();
 
 
-app.use(bodyParser.json());
-app.use(express.json())
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb' }));
 // app.use('/api', appRouter)
 app.listen(3000, () => console.log("Server started"))
 
@@ -146,6 +146,171 @@ app.post('/searchevents', async (req, res) => {
     }
 })
 
+app.get('/getallclubs', async (req, res) => {
+    const clubs = await client.db('needfy').collection('clubs').find({lastUpdatedEvent: {"$exists": false}}).toArray();
+    res.status(200).send({ "success": true, "data": clubs })
+})
+
+
+app.post('/updateclubdatetime', async (req, res) => {
+    const club = await client.db('needfy').collection('clubs').updateOne({ _id: ObjectId(req.body.id) }, { $set: { lastUpdatedEvent: new Date() } });
+    res.status(200).send({ "success": true, data: club });
+})
+
+
+app.post('/loadevents', async (req, res) => {
+
+    var duplicates = []
+    // body = JSON.parse(req.body)
+    var events_to_add = req.body.data
+
+    for (let i = 0; i < events_to_add.length; i++) {
+        const event = await client.db('needfy').collection('events').findOne({ name: events_to_add[i].name, start: events_to_add[i].start })
+        // console.log(event)
+        if (event == null) {
+            console.log(events_to_add[i])
+            try {
+                // if ("club" in events_to_add[i]) {
+                //     var club = await client.db('needfy').collection('clubs').findOne({ name: events_to_add[i].club.name })
+                //     if (club == null) {
+                //         club = await client.db('needfy').collection('clubs').insertOne(events_to_add[i].club)
+                //     }
+                //     events_to_add[i].club._id = club._id
+                // }
+
+                await client.db('needfy').collection('events').insertOne(events_to_add[i])
+                // for (let k = 0; k < events_to_add[i].organizers.length; k++) {
+
+                //     if (events_to_add[i].organizers[k].type == "organizer") {
+                //         var organizer = await client.db('needfy').collection('organizers').findOne({ name: events_to_add[i].organizers[k].name })
+                //         if (organizer == null) {
+                //             delete events_to_add[i].organizers[k].type
+                //             organizer = await client.db('needfy').collection('organizers').insertOne(events_to_add[i].organizers[k])
+                //             events_to_add[i].organizers[k]._id = organizer.insertedId
+                //         }
+                //         else {
+                //             events_to_add[i].organizers[k]._id = organizer._id
+                //         }
+                //         events_to_add[i].organizers[k].type = "organizer"
+                //     }
+
+                //     if (events_to_add[i].organizers[k].type == "club") {
+                //         // se tra gli organizzatori c'è un club, cerchiamo nella collection dei club così da mettere l'id club dentro il campo "club_id" di event.organizers.club_id
+                //         delete events_to_add[i].organizers[k].type
+                //         var club_org = await client.db('needfy').collection('clubs').findOne({ name: events_to_add[i].organizers[k].name })
+                //         if (club_org == null) {
+                //             club_org = await client.db('needfy').collection('clubs').insertOne(events_to_add[i].organizers[k])
+                //             events_to_add[i].organizers[k]._id = club_org.insertedId
+                //         } else {
+                //             events_to_add[i].organizers[k]._id = club_org._id
+                //         }
+                //         events_to_add[i].organizers[k].type = "club"
+                //     }
+
+                //     if (events_to_add[i].organizers[k].type == "artist") {
+                //         console.log("ARTISTA RILEVATO")
+                //         delete events_to_add[i].organizers[k].type
+                //         // se tra gli organizzatori c'è un artist, cerchiamo nella collection dei artist così da mettere l'id artist dentro il campo "artist_id" di event.organizers.artist_id
+                //         var artist_org = await client.db('needfy').collection('artists').findOne({ name: events_to_add[i].organizers[k].name })
+                //         if (artist_org == null) {
+                //             console.log("ARTISTA NON PRESENTE")
+                //             console.log(events_to_add[i].organizers[k].name)
+                //             artist_org = await client.db('needfy').collection('artists').insertOne(events_to_add[i].organizers[k])
+                //             console.log("ARTISTA AGGIUNTO")
+                //             events_to_add[i].organizers[k]._id = artist_org.insertedId
+                //         }
+                //         else {
+                //             console.log("ARTISTA GIA PRESENTE: ")
+                //             console.log(artist_org)
+                //             events_to_add[i].organizers[k]._id = artist_org._id
+                //         }
+                //         events_to_add[i].organizers[k].type = "artist"
+                //     }
+
+                // }
+
+            } catch (error) {
+                console.log(error)
+            }
+        } else {
+            duplicates.push(event)
+        }
+    }
+
+    res.status(200).send({ "success": true, "data": { "message": "Successfully added " + (req.body.data.length - duplicates.length) + " events", "duplicates": duplicates } })
+})
+
+
+
+app.post('/loadclubs', async (req, res) => {
+
+    console.log("loading club... ")
+    console.log(req.body.data[0])
+    var data
+    for (let i = 0; i < req.body.data.length; i++) {
+        const club = await client.db('needfy').collection('clubs').findOne({ facebook: req.body.data[i].facebook })
+        if (club == null) {
+            try {
+                data = await client.db('needfy').collection('clubs').insertOne(req.body.data[i])
+                data._id = data.insertedId
+            } catch (error) {
+                console.log(error)
+            }
+        } else {
+            data = club
+        }
+    }
+
+    res.status(200).send({ "success": true, "data": data })
+})
+
+app.post('/loadartists', async (req, res) => {
+
+    var duplicates = []
+    console.log("loading artists... ")
+    console.log(req.body.data[0])
+    var data
+    for (let i = 0; i < req.body.data.length; i++) {
+        const club = await client.db('needfy').collection('artists').findOne({ facebook: req.body.data[i].facebook })
+        if (club == null) {
+            try {
+                data = await client.db('needfy').collection('artists').insertOne(req.body.data[i])
+                data._id = data.insertedId
+            } catch (error) {
+                console.log(error)
+            }
+        } else {
+            data = club
+        }
+    }
+
+    res.status(200).send({ "success": true, "data": data })
+})
+
+app.post('/loadorganizers', async (req, res) => {
+
+    var duplicates = []
+    console.log("loading organizers... ")
+    console.log(req.body.data[0])
+    var data
+    for (let i = 0; i < req.body.data.length; i++) {
+        const club = await client.db('needfy').collection('organizers').findOne({ facebook: req.body.data[i].facebook })
+        if (club == null) {
+            try {
+                data = await client.db('needfy').collection('organizers').insertOne(req.body.data[i])
+                data._id = data.insertedId
+            } catch (error) {
+                console.log(error)
+            }
+        } else {
+            data = club
+        }
+    }
+
+    res.status(200).send({ "success": true, "data": data })
+})
+
+
 app.post('/nearclubs', async (req, res) => {
     try {
 
@@ -177,7 +342,7 @@ app.get('/organizerbyid', async (req, res) => {
         })
         const result = await session.run("match (a:User), (b:Organizer) where a._id = '" + req.query.user_id + "' and b._id = '" + req.query._id + "' return exists((a)-[:Follows]->(b));")
         organizer.is_followed = result.records[0]._fields[0];
-        
+
         res.status(200).send({ "success": true, "data": organizer })
 
     } catch (error) {
@@ -185,6 +350,68 @@ app.get('/organizerbyid', async (req, res) => {
         res.status(500).send({ "error": error })
     }
 })
+
+app.get('/organizerbyfacebook', async (req, res) => {
+    try {
+
+        var organizer = await client.db('needfy').collection('organizers').findOne({
+            facebook: req.query.facebook
+        })
+
+        res.status(200).send({ "success": true, "data": organizer })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/clubbyfacebook', async (req, res) => {
+    try {
+
+        var club = await client.db('needfy').collection('clubs').findOne({
+            facebook: req.query.facebook
+        })
+
+        res.status(200).send({ "success": true, "data": club })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/eventbyfacebook', async (req, res) => {
+    try {
+
+        var event = await client.db('needfy').collection('events').findOne({
+            facebook: req.query.facebook
+        })
+        console.log(event)
+        console.log(req.query.facebook)
+        res.status(200).send({ "success": true, "data": event })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
+app.get('/artistbyfacebook', async (req, res) => {
+    try {
+
+        var artist = await client.db('needfy').collection('artists').findOne({
+            facebook: req.query.facebook
+        })
+
+        res.status(200).send({ "success": true, "data": artist })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
+
 
 app.get('/eventbyid', async (req, res) => {
     try {
@@ -196,7 +423,7 @@ app.get('/eventbyid', async (req, res) => {
         })
         const result = await session.run("match (a:User), (b:Event) where a._id = '" + req.query.user_id + "' and b._id = '" + req.query._id + "' return exists((a)-[:ParticipatesIn]->(b));")
         event.participates = result.records[0]._fields[0];
-        
+
         res.status(200).send({ "success": true, "data": event })
 
     } catch (error) {
@@ -210,7 +437,7 @@ app.get('/clubbyid', async (req, res) => {
 
         var club = await client.db('needfy').collection('clubs').findOne({
             _id: ObjectId(req.query._id)
-        }) 
+        })
         const result = await session.run("match (a:User), (b:Club) where a._id = '" + req.query.user_id + "' and b._id = '" + req.query._id + "' return exists((a)-[:Follows]->(b));")
         club.is_followed = result.records[0]._fields[0];
         res.status(200).send({ "success": true, "data": club })
