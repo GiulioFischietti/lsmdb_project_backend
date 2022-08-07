@@ -1,9 +1,9 @@
+var states = ['afghanistan', 'albania', 'algeria', 'andorra', 'angola', 'anguilla', 'antartide', 'antigua e barbuda', 'arabia saudita', 'argentina', 'armenia', 'aruba', 'australia', 'austria', 'azerbaigian', 'bahamas', 'bahrein', 'bangladesh', 'barbados', 'belgio', 'belize', 'benin', 'bermuda', 'bhutan', 'bielorussia', 'birmania', 'bolivia', 'bosnia ed erzegovina', 'botswana', 'brasile', 'brunei', 'bulgaria', 'burkina faso', 'burundi', 'cambogia', 'camerun', 'canada', 'capo verde', 'ciad', 'cile', 'cina', 'cipro', 'citt', 'colombia', 'comore', 'corea del nord', 'corea del sud', "costa d'avorio", 'costa rica', 'croazia', 'cuba', 'cura', 'danimarca', 'dominica', 'ecuador', 'egitto', 'el salvador', 'emirati arabi uniti', 'eritrea', 'estonia', 'etiopia', 'figi', 'filippine', 'finlandia', 'francia', 'gabon', 'gambia', 'georgia', 'georgia del sud e isole sandwich meridionali', 'germania', 'ghana', 'giamaica', 'giappone', 'gibilterra', 'gibuti', 'giordania', 'grecia', 'grenada', 'groenlandia', 'guadalupa', 'guam', 'guatemala', 'guernsey', 'guinea', 'guinea-bissau', 'guinea equatoriale', 'guyana', 'guyana francese', 'haiti', 'honduras', 'hong kong', 'india', 'indonesia', 'iran', 'iraq', 'irlanda', 'islanda', 'isola bouvet', 'isola di man', 'isola di natale', 'isola norfolk', 'isole ', 'isole bes', 'isole cayman', 'isole cocos (keeling)', 'isole cook', 'f', 'isole falkland', 'isole heard e mcdonald', 'isole marianne settentrionali', 'isole marshall', 'isole minori esterne degli stati uniti', 'isole pitcairn', 'isole salomone', 'isole vergini britanniche', 'isole vergini americane', 'israele', 'jersey', 'kazakistan', 'kenya', 'kirghizistan', 'kiribati', 'kuwait', 'laos', 'lesotho', 'lettonia', 'libano', 'liberia', 'libia', 'liechtenstein', 'lituania', 'lussemburgo', 'macao', 'macedonia', 'madagascar', 'malawi', 'malesia', 'maldive', 'mali', 'malta', 'marocco', 'martinica', 'mauritania', 'mauritius', 'mayotte', 'messico', 'micronesia', 'moldavia', 'mongolia', 'montenegro', 'montserrat', 'mozambico', 'namibia', 'nauru', 'nepal', 'nicaragua', 'niger', 'nigeria', 'niue', 'norvegia', 'nuova caledonia', 'nuova zelanda', 'oman', 'paesi bassi', 'pakistan', 'palau', 'palestina', 'panam', 'papua nuova guinea', 'paraguay', 'per', 'polinesia francese', 'polonia', 'porto rico', 'portogallo', 'monaco', 'qatar', 'regno unito', 'rd del congo', 'rep. ceca', 'rep. centrafricana', 'rep. del congo', 'rep. dominicana', 'riunione', 'romania', 'ruanda', 'russia', 'sahara occidentale', 'saint kitts e nevis', 'santa lucia', "sant'elena, ascensione e tristan da cunha", 'saint vincent e grenadine', 'saint-barth', 'saint-martin', 'saint-pierre e miquelon', 'samoa', 'samoa americane', 'san marino', 's', 'senegal', 'serbia', 'seychelles', 'sierra leone', 'singapore', 'sint maarten', 'siria', 'slovacchia', 'slovenia', 'somalia', 'spagna', 'sri lanka', 'stati uniti', 'sudafrica', 'sudan', 'sudan del sud', 'suriname', 'svalbard e jan mayen', 'svezia', 'svizzera', 'swaziland', 'taiwan', 'tagikistan', 'tanzania', 'terre australi e antartiche francesi', "territorio britannico dell'oceano indiano", 'thailandia', 'timor est', 'togo', 'tokelau', 'tonga', 'trinidad e tobago', 'tunisia', 'turchia', 'turkmenistan', 'turks e caicos', 'tuvalu', 'ucraina', 'uganda', 'ungheria', 'uruguay', 'uzbekistan', 'vanuatu', 'venezuela', 'vietnam', 'wallis e futuna', 'yemen', 'zambia', 'zimbabwe']
 
 const express = require('express')
 const neo4j = require('neo4j-driver')
 var { MongoClient, ObjectId } = require('mongodb');
 require('dotenv').config()
-
 const app = express()
 const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
@@ -147,7 +147,8 @@ app.post('/searchevents', async (req, res) => {
 })
 
 app.get('/getallclubs', async (req, res) => {
-    const clubs = await client.db('needfy').collection('clubs').find({lastUpdatedEvent: {"$exists": false}}).toArray();
+
+    const clubs = await client.db('needfy').collection('clubs').find({ lastUpdatedEvent: { "$exists": false }, assignedTo: parseInt(req.query.machine) }).toArray();
     res.status(200).send({ "success": true, "data": clubs })
 })
 
@@ -170,70 +171,30 @@ app.post('/loadevents', async (req, res) => {
         if (event == null) {
             console.log(events_to_add[i])
             try {
-                // if ("club" in events_to_add[i]) {
-                //     var club = await client.db('needfy').collection('clubs').findOne({ name: events_to_add[i].club.name })
-                //     if (club == null) {
-                //         club = await client.db('needfy').collection('clubs').insertOne(events_to_add[i].club)
-                //     }
-                //     events_to_add[i].club._id = club._id
-                // }
-
+                events_to_add[i].createdAt = new Date()
                 await client.db('needfy').collection('events').insertOne(events_to_add[i])
-                // for (let k = 0; k < events_to_add[i].organizers.length; k++) {
-
-                //     if (events_to_add[i].organizers[k].type == "organizer") {
-                //         var organizer = await client.db('needfy').collection('organizers').findOne({ name: events_to_add[i].organizers[k].name })
-                //         if (organizer == null) {
-                //             delete events_to_add[i].organizers[k].type
-                //             organizer = await client.db('needfy').collection('organizers').insertOne(events_to_add[i].organizers[k])
-                //             events_to_add[i].organizers[k]._id = organizer.insertedId
-                //         }
-                //         else {
-                //             events_to_add[i].organizers[k]._id = organizer._id
-                //         }
-                //         events_to_add[i].organizers[k].type = "organizer"
-                //     }
-
-                //     if (events_to_add[i].organizers[k].type == "club") {
-                //         // se tra gli organizzatori c'è un club, cerchiamo nella collection dei club così da mettere l'id club dentro il campo "club_id" di event.organizers.club_id
-                //         delete events_to_add[i].organizers[k].type
-                //         var club_org = await client.db('needfy').collection('clubs').findOne({ name: events_to_add[i].organizers[k].name })
-                //         if (club_org == null) {
-                //             club_org = await client.db('needfy').collection('clubs').insertOne(events_to_add[i].organizers[k])
-                //             events_to_add[i].organizers[k]._id = club_org.insertedId
-                //         } else {
-                //             events_to_add[i].organizers[k]._id = club_org._id
-                //         }
-                //         events_to_add[i].organizers[k].type = "club"
-                //     }
-
-                //     if (events_to_add[i].organizers[k].type == "artist") {
-                //         console.log("ARTISTA RILEVATO")
-                //         delete events_to_add[i].organizers[k].type
-                //         // se tra gli organizzatori c'è un artist, cerchiamo nella collection dei artist così da mettere l'id artist dentro il campo "artist_id" di event.organizers.artist_id
-                //         var artist_org = await client.db('needfy').collection('artists').findOne({ name: events_to_add[i].organizers[k].name })
-                //         if (artist_org == null) {
-                //             console.log("ARTISTA NON PRESENTE")
-                //             console.log(events_to_add[i].organizers[k].name)
-                //             artist_org = await client.db('needfy').collection('artists').insertOne(events_to_add[i].organizers[k])
-                //             console.log("ARTISTA AGGIUNTO")
-                //             events_to_add[i].organizers[k]._id = artist_org.insertedId
-                //         }
-                //         else {
-                //             console.log("ARTISTA GIA PRESENTE: ")
-                //             console.log(artist_org)
-                //             events_to_add[i].organizers[k]._id = artist_org._id
-                //         }
-                //         events_to_add[i].organizers[k].type = "artist"
-                //     }
-
-                // }
-
             } catch (error) {
                 console.log(error)
             }
         } else {
-            duplicates.push(event)
+            res.status(200).send({ "success": true, "data": event })
+            // for (let i = 0; i < events_to_add[0].organizers.length; i++) {
+            //     var org_already_present = false
+
+            //     for (let j = 0; j < event.organizers.length; j++) {
+            //         if (event.organizers[j]._id == events_to_add[0].organizers[i]._id) {
+            //             org_already_present = true
+            //         }
+            //     }
+                
+            //     if (!org_already_present) {
+            //         client.db('needfy').collection('events').updateOne(
+            //             { _id: event._id },
+            //             { $push: { organizers: events_to_add[0].organizers[i] } }
+            //         )
+            //     }
+
+            // }
         }
     }
 
@@ -249,15 +210,19 @@ app.post('/loadclubs', async (req, res) => {
     var data
     for (let i = 0; i < req.body.data.length; i++) {
         const club = await client.db('needfy').collection('clubs').findOne({ facebook: req.body.data[i].facebook })
-        if (club == null) {
+        const club2 = await client.db('needfy').collection('clubs').findOne({ facebook: req.body.data[i].facebook.slice(0, -1) })
+
+        if ((club == null) && (club2 == null)) {
             try {
+                req.body.data[i].createdAt = new Date()
                 data = await client.db('needfy').collection('clubs').insertOne(req.body.data[i])
                 data._id = data.insertedId
             } catch (error) {
                 console.log(error)
+                res.status(200).send({ "success": true, "data": null })
             }
         } else {
-            data = club
+            data = club != null ? club : club2
         }
     }
 
@@ -274,10 +239,12 @@ app.post('/loadartists', async (req, res) => {
         const club = await client.db('needfy').collection('artists').findOne({ facebook: req.body.data[i].facebook })
         if (club == null) {
             try {
+                req.body.data[i].createdAt = new Date()
                 data = await client.db('needfy').collection('artists').insertOne(req.body.data[i])
                 data._id = data.insertedId
             } catch (error) {
                 console.log(error)
+                res.status(200).send({ "success": true, "data": null })
             }
         } else {
             data = club
@@ -285,6 +252,31 @@ app.post('/loadartists', async (req, res) => {
     }
 
     res.status(200).send({ "success": true, "data": data })
+})
+
+app.get('/getduplicatesevents', async (req, res) => {
+
+    var groupedevents = await client.db('needfy').collection('events').aggregate([{ "$group": { "_id": { "name": "$name", "start:": "$start", "end": "$end" }, "count": { "$sum": 1 }, events: { $push: "$$ROOT" } } }, { "$match": { "_id": { "$ne": null }, "count": { "$gt": 1 } } }, { "$sort": { "count": -1 } }], { allowDiskUse: true }).toArray()
+    // var events = []
+    // for (let i = 0; i < groupedevents.length; i++) {
+    //     console.log("Updating events of artist " + groupedevents[i].events[0].name)
+    //     var events = await client.db('needfy')
+    //         .collection('events')
+    //         .updateMany({ "artist.name": groupedevents[i].events[0].name }, { "$set": { "artist": groupedevents[i].events[0] } })
+    // for (let j = 0; j < groupedClubs[i].clubs.length; j++) {
+    //     oldest_id = groupedClubs[i].clubs[0]._id;
+
+    // events.push(await client.db('needfy')
+    // .collection('events')
+    // .find({"club.name": groupedClubs[i].clubs[j].name})
+    // .toArray())
+    // console.log(groupedClubs[i].clubs[0]._id + ', ' + groupedClubs[i].clubs[j]._id)
+    // console.log(ObjectId(groupedClubs[i].clubs[0]._id) > ObjectId(groupedClubs[i].clubs[j]._id))
+    // }
+
+    // }
+    res.status(200).send({ "success": true, "data": groupedevents })
+
 })
 
 app.post('/loadorganizers', async (req, res) => {
@@ -295,21 +287,54 @@ app.post('/loadorganizers', async (req, res) => {
     var data
     for (let i = 0; i < req.body.data.length; i++) {
         const club = await client.db('needfy').collection('organizers').findOne({ facebook: req.body.data[i].facebook })
-        if (club == null) {
+        const club2 = await client.db('needfy').collection('organizers').findOne({ facebook: req.body.data[i].facebook.slice(0, -1) })
+        if ((club == null) && (club2 == null)) {
             try {
+                req.body.data[i].createdAt = new Date()
                 data = await client.db('needfy').collection('organizers').insertOne(req.body.data[i])
                 data._id = data.insertedId
             } catch (error) {
                 console.log(error)
             }
         } else {
-            data = club
+            data = club != null ? club : club2
         }
     }
 
     res.status(200).send({ "success": true, "data": data })
 })
 
+app.get('/standardizeclubs', async (req, res) => {
+    try {
+
+        var clubstofix = await client.db('needfy').collection('clubs').find({ facebook: { $regex: ".+\/$" } }).toArray()
+        for (let i = 0; i < clubstofix.length; i++) {
+            await client.db('needfy').collection('clubs').updateOne({ _id: clubstofix[i]._id },
+                {
+                    $set:
+                        { facebook: clubstofix[i].facebook.slice(0, -1) }
+                })
+        }
+
+
+        // var near_clubs = await client.db('needfy').collection('clubs_test').updateMany(
+        //     { facebook: { $regex: ".+\/$" } },
+        //     [
+
+
+        //                 facebook: {
+        //                     $slice: ["$facebook", 0, -1]
+        //                 }
+        //             }
+        //         }]
+        // )
+        res.status(200).send({ "success": true, "data": clubstofix })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+})
 
 app.post('/nearclubs', async (req, res) => {
     try {
@@ -393,7 +418,7 @@ app.get('/eventbyfacebook', async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.status(500).send({ "error": error })
+        res.status(500).send({ "error": error, "data": null })
     }
 })
 
@@ -408,7 +433,7 @@ app.get('/artistbyfacebook', async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.status(500).send({ "error": error })
+        res.status(500).send({ "error": error, "data": artist })
     }
 })
 
