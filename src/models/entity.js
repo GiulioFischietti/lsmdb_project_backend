@@ -63,7 +63,7 @@ class Entity {
     }
 
     static loadEntity = async (entityToAdd) => {
-        this.mongoCollection.insertOne(entityToAdd)
+        const response = await this.mongoCollection.insertOne(entityToAdd)
     }
 
     static updateEntityDateTime = async (id) => {

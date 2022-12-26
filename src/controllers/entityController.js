@@ -27,7 +27,7 @@ const updateEntityDateTime = async (req, res) => {
 const loadEntity = async (req, res) => {
     try {
         const entity = buildEntity(req.body.entity)
-        var insertedDocument = Entity.loadEntity(entity);
+        var insertedDocument = await Entity.loadEntity(entity);
         res.status(200).send({ "success": true, "data": ObjectId(insertedDocument.insertedId) })
     } catch (error) {
         console.log(error)

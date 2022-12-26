@@ -2,6 +2,7 @@ const { EntityMinimal } = require("./entityMinimal");
 const { MongoCollection } = require("../config/mongoCollection");
 const { neo4jClient } = require("../config/neo4jDB")
 const { ObjectId } = require("mongodb");
+const { EventMinimal } = require("./EventMinimal");
 
 function replaceall(str, replace, with_this) {
     if (str == undefined) return str
@@ -13,6 +14,7 @@ function replaceall(str, replace, with_this) {
 
     return result
 }
+
 class Event {
     static eventCollection = new MongoCollection({ collection: "events" })
     static entityCollection = new MongoCollection({ collection: "entities" })
@@ -38,8 +40,6 @@ class Event {
 
     static updateUpcomingEvents = async () => {
 
-        // creare un campo entities nel quale mettere organizzatori e artisti per poi fare unwind e raggruppare gli eventi per ogni entità
-
         var data = await this.eventCollection.aggregate([
             { $match: { start: { $gte: new Date() } } },
             { $project: { _id: "$_id", name: "$name", image: "$image", start: "$start", genres: "$genres", address: "$address", organizers: "$organizers", artists: "$artists" } },
@@ -48,10 +48,14 @@ class Event {
             { $group: { _id: "$entities", events: { $push: "$$ROOT" } } },
             { $sort: { "_id._id": 1 } }
         ]).toArray()
-        // console.log(data)
+
         for (let i = 0; i < data.length; i++) {
-            if(i%100==0) console.log(i*100/data.length)
-            this.entityCollection.updateOne({_id: ObjectId(data[i]._id._id)}, {$set: {upcomingEvents: data[i].events}})
+            if (i % 100 == 0) console.log(i * 100 / data.length)
+            try {
+                this.entityCollection.updateOne({ _id: ObjectId(data[i]._id._id) }, { $set: { upcomingEvents: data[i].events.map((eventDoc) => { return new EventMinimal(eventDoc) }) } })
+            } catch (error) {
+                console.log(data[i])
+            }
         }
     }
 
