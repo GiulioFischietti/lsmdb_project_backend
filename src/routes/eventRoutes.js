@@ -10,6 +10,7 @@ router.get('/eventbyid', eventController.eventById)
 router.post('/uploadevent', eventController.uploadEvent)
 router.get('/allevents', eventController.allEvents)
 router.post('/uploadexistingeventonneo4j', eventController.uploadExistingEventOnNeo4j)
+router.get('/updateUpcomingEvents', eventController.updateUpcomingEvents)
 
 
 module.exports = router

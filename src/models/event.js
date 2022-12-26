@@ -14,7 +14,8 @@ function replaceall(str, replace, with_this) {
     return result
 }
 class Event {
-    static mongoCollection = new MongoCollection({ collection: "events" })
+    static eventCollection = new MongoCollection({ collection: "events" })
+    static entityCollection = new MongoCollection({ collection: "entities" })
 
     constructor(data) {
         if (data == null) return null
@@ -26,61 +27,81 @@ class Event {
             this.end = new Date(data.end);
         this.genres = data.genres;
         this.facebook = data.facebook;
+        this.image = data.image;
         this.organizers = data.organizers.map((item) => new EntityMinimal(item));
         this.artists = data.artists.map((item) => new EntityMinimal(item));
         this.club = data.club != null ? new EntityMinimal(data.club) : {};
         this.address = data.address;
-        this.location = data.location;    
+        this.location = data.location;
         this.createdAt = new Date()
     }
 
+    static updateUpcomingEvents = async () => {
+
+        // creare un campo entities nel quale mettere organizzatori e artisti per poi fare unwind e raggruppare gli eventi per ogni entità
+
+        var data = await this.eventCollection.aggregate([
+            { $match: { start: { $gte: new Date() } } },
+            { $project: { _id: "$_id", name: "$name", image: "$image", start: "$start", genres: "$genres", address: "$address", organizers: "$organizers", artists: "$artists" } },
+            { $addFields: { entities: { $concatArrays: ["$organizers", "$artists"] } } },
+            { $unwind: { path: "$entities" } },
+            { $group: { _id: "$entities", events: { $push: "$$ROOT" } } },
+            { $sort: { "_id._id": 1 } }
+        ]).toArray()
+        // console.log(data)
+        for (let i = 0; i < data.length; i++) {
+            if(i%100==0) console.log(i*100/data.length)
+            this.entityCollection.updateOne({_id: ObjectId(data[i]._id._id)}, {$set: {upcomingEvents: data[i].events}})
+        }
+    }
+
     static eventById = async (req) => {
-        const response = await this.mongoCollection.findOne({
+        const response = await this.eventCollection.findOne({
             _id: ObjectId(req.query._id)
         })
         return new Event(response)
     }
 
     static eventByFacebook = async (req) => {
-        const response = await this.mongoCollection.findOne({
+        const response = await this.eventCollection.findOne({
             facebook: req.query.facebook
         })
         return new Event(response)
     }
 
     static amountEventsScraped = async (req) => {
-        const addedToday = await this.mongoCollection.countDocuments({
+        const addedToday = await this.eventCollection.countDocuments({
             createdAt: {
                 $gte: new Date(new Date() - 60 * 60 * 24 * 1000)
             }
         })
-        const events_count = await this.mongoCollection.countDocuments({})
+        const events_count = await this.eventCollection.countDocuments({})
         return { events_count, addedToday }
     }
 
     static recentData = async (req) => {
-        const response = await this.mongoCollection.find().sort({ createdAt: -1 }).limit(8).toArray()
+        const response = await this.eventCollection.find().sort({ createdAt: -1 }).limit(8).toArray()
         return response.map((item) => new Event(item))
     }
 
     static getAllEvents = async (req) => {
-        const response = await this.mongoCollection.find({ start: { "$gte": (new Date("2022-01-01")) } }).toArray()
+        const response = await this.eventCollection.find({ start: { "$gte": (new Date("2022-01-01")) } }).toArray()
         return response.map((item) => new Event(item))
     }
 
     static searchEvents = async (parameters) => {
-        const response = await this.mongoCollection.find(parameters).toArray()
+        const response = await this.eventCollection.find(parameters).toArray()
         return response.map((item) => new Event(item))
     }
 
     static findEventByNameAndStart = async (eventToAdd) => {
-        const response = await this.mongoCollection.findOne({ name: eventToAdd.name, start: eventToAdd.start })
+        const response = await this.eventCollection.findOne({ name: eventToAdd.name, start: eventToAdd.start })
         return response
     }
 
     static uploadEventOnMongoDB = async (eventToAdd) => {
-        await this.mongoCollection.insertOne(eventToAdd)
-        const addedEvent = await this.mongoCollection.findOne({ facebook: eventToAdd.facebook })
+        await this.eventCollection.insertOne(eventToAdd)
+        const addedEvent = await this.eventCollection.findOne({ facebook: eventToAdd.facebook })
         return addedEvent
     }
 

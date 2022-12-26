@@ -1,10 +1,11 @@
-const { ObjectId } = require('mongodb');
+const { ObjectId, Db } = require('mongodb');
 const { MongoCollection } = require('../config/mongoCollection');
 const { Review } = require('./review');
 
 class Entity {
 
     static mongoCollection = new MongoCollection({ collection: "entities" })
+    static eventsCollection = new MongoCollection({ collection: "events" })
 
     constructor(data) {
         if (data == null) return null
@@ -17,14 +18,17 @@ class Entity {
         this.facebook = data.facebook;
         this.email = data.email;
         this.phones = data.phones;
+        this.facebookDescription = data.facebookDescription;
         this.websites = data.websites;
         this.reviews = data.reviews != null ? data.reviews.map((item) => new Review(item)) : []
         this.reviewIds = data.reviewIds != null ? data.reviewIds : []
     }
 
     static getClubsToScrape = async () => {
-        return await this.mongoCollection.find({type: "club", "location": {$exists: true}, "address": {$exists: true, $nin: ["", null]}}).sort({lastUpdatedEvent: 1}).toArray()
+        return await this.mongoCollection.find({ type: "club", "location": { $exists: true }, "address": { $exists: true, $nin: ["", null] } }).sort({ lastUpdatedEvent: 1 }).toArray()
     }
+
+   
 
     static entityById = async (req) => {
         const entity = await this.mongoCollection.findOne({
@@ -36,7 +40,7 @@ class Entity {
     static entitiesByType = async (type) => {
         const entity = await this.mongoCollection.find({
             type: type
-        }).sort({lastUpdatedEvent: 1}).toArray()
+        }).sort({ lastUpdatedEvent: 1 }).toArray()
         return entity;
     }
 

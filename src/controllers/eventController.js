@@ -106,6 +106,17 @@ const allEvents = async (req, res) => {
     res.status(200).send({ "success": true, "data": events })
 }
 
+const updateUpcomingEvents = async (req, res) => {
+    try {
+        // console.log("aaaaaaaaaaaaaaa")
+        const response = await Event.updateUpcomingEvents();
+        res.status(200).send({ "success": true, data: response });
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
+
 module.exports = {
     eventByFacebook,
     amountEventsScraped,
@@ -114,5 +125,6 @@ module.exports = {
     eventById,
     uploadEvent,
     allEvents,
-    uploadExistingEventOnNeo4j
+    uploadExistingEventOnNeo4j,
+    updateUpcomingEvents
 }
