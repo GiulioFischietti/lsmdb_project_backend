@@ -13,9 +13,18 @@ const getAllClubs = async (req, res) => {
     }
 }
 
+const getEntitiesToUpdate = async (req, res) => {
+    try {
+        const response = await Entity.getEntitiesToUpdate();
+        res.status(200).send({ "success": true, data: response })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: clubs })
+    }
+}
+
 const updateEntityDateTime = async (req, res) => {
     try {
-        // console.log("aaaaaaaaaaaaaaa")
         Entity.updateEntityDateTime(req.body.id);
         res.status(200).send({ "success": true, data: null });
     } catch (error) {
@@ -24,6 +33,15 @@ const updateEntityDateTime = async (req, res) => {
     }
 }
 
+const updateEntity = async (req, res) => {
+    try {
+        Entity.updateEntity(req.body.id, req.body.entity);
+        res.status(200).send({ "success": true, data: null });
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
 const loadEntity = async (req, res) => {
     try {
         const entity = buildEntity(req.body.entity)
@@ -91,5 +109,8 @@ module.exports = {
     entityById,
     entityByFacebook,
     entityByName,
-    entitiesWithLocation
+    entitiesWithLocation,
+    updateEntity,
+    getEntitiesToUpdate
+
 }

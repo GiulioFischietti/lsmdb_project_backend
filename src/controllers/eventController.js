@@ -1,4 +1,6 @@
 const { Event } = require('../models/event');
+const { Entity } = require('../models/entity');
+const { AnalyticsEvent } = require('../models/analyticsEvent');
 
 const eventByFacebook = async (req, res) => {
     try {
@@ -72,12 +74,13 @@ const uploadEvent = async (req, res) => {
 
     if (event == null) {
         try {
-            const addedEvent = await Event.uploadEventOnMongoDB(eventToAdd)
-            if (addedEvent == null) {
-                throw "Error uploading event"
-            }
+            const insertedId = await AnalyticsEvent.uploadAnalyticsEventOnMongoDB(eventToAdd)
+            eventToAdd._id = insertedId
 
-            // const response = await Event.uploadEventOnNeo4j(addedEvent)
+            if (eventToAdd.start > new Date()) {
+                const addedEvent = new Event(await Event.uploadEventOnMongoDB(eventToAdd))
+                Entity.loadUpcomingEvent(addedEvent)
+            }
             res.status(200).send({ "success": true, "data": null })
         } catch (error) {
             console.log(error)
@@ -106,16 +109,16 @@ const allEvents = async (req, res) => {
     res.status(200).send({ "success": true, "data": events })
 }
 
-const updateUpcomingEvents = async (req, res) => {
-    try {
-        // console.log("aaaaaaaaaaaaaaa")
-        const response = await Event.updateUpcomingEvents();
-        res.status(200).send({ "success": true, data: response });
-    } catch (error) {
-        console.log(error)
-        res.status(500).send({ "success": false, data: null })
-    }
-}
+// const updateUpcomingEvents = async () => {
+//     try {
+//         // console.log("aaaaaaaaaaaaaaa")
+//         const response = await Event.updateUpcomingEvents();
+//         // res.status(200).send({ "success": true, data: response });
+//     } catch (error) {
+//         console.log(error)
+//         // res.status(500).send({ "success": false, data: null })
+//     }
+// }
 
 module.exports = {
     eventByFacebook,
@@ -126,5 +129,4 @@ module.exports = {
     uploadEvent,
     allEvents,
     uploadExistingEventOnNeo4j,
-    updateUpcomingEvents
 }

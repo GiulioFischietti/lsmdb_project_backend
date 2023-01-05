@@ -38,6 +38,12 @@ class User {
         }, { $set: params }, { upsert: false })
         return response
     }
+
+    static removePastLikedEvents = async () => {
+        console.log("Removing old liked events...")
+        this.mongoQueryBuilder.updateMany({ "likesEvents.start": { $lte: new Date() } }, { $pull: { likesEvents: { start: { $lte: new Date() } } } })
+        console.log("Done")
+    }
 }
 
 module.exports = { User }

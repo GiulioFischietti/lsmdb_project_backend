@@ -15,18 +15,26 @@ function replaceall(str, replace, with_this) {
     return result
 }
 
+function addMinutes(date, minutes) {
+    return new Date(date.getTime() + minutes * 60000);
+}
+
 class Event {
     static eventCollection = new MongoCollection({ collection: "events" })
+    static analyticsEventsCollection = new MongoCollection({ collection: "analyticsEvents" })
     static entityCollection = new MongoCollection({ collection: "entities" })
 
     constructor(data) {
         if (data == null) return null
-        this._id = data._id;
+        this._id = ObjectId(data._id);
         this.name = data.name;
         this.description = data.description;
         this.start = new Date(data.start);
-        if (data.end != null)
+        this.expiresAt = addMinutes(this.start, 300)
+        if (data.end != null) {
             this.end = new Date(data.end);
+            this.expiresAt = this.end
+        }
         this.genres = data.genres;
         this.facebook = data.facebook;
         this.image = data.image;
@@ -38,26 +46,28 @@ class Event {
         this.createdAt = new Date()
     }
 
-    static updateUpcomingEvents = async () => {
+    // static updateUpcomingEvents = async () => {
+    // da modificare semplicemnete con una rimozione degli eventi vecchi: questp script va bene come prima aggiunta per inizializzare ilcampo 
+    // var data = await this.eventCollection.aggregate([
+    //     { $match: { start: { $gte: new Date() } } },
+    //     { $project: { _id: "$_id", name: "$name", image: "$image", start: "$start", genres: "$genres", address: "$address", organizers: "$organizers", artists: "$artists" } },
+    //     { $addFields: { entities: { $concatArrays: ["$organizers", "$artists"] } } },
+    //     { $unwind: { path: "$entities" } },
+    //     { $group: { _id: "$entities", events: { $push: "$$ROOT" } } },
+    //     { $sort: { "_id._id": 1 } }
+    // ]).toArray()
 
-        var data = await this.eventCollection.aggregate([
-            { $match: { start: { $gte: new Date() } } },
-            { $project: { _id: "$_id", name: "$name", image: "$image", start: "$start", genres: "$genres", address: "$address", organizers: "$organizers", artists: "$artists" } },
-            { $addFields: { entities: { $concatArrays: ["$organizers", "$artists"] } } },
-            { $unwind: { path: "$entities" } },
-            { $group: { _id: "$entities", events: { $push: "$$ROOT" } } },
-            { $sort: { "_id._id": 1 } }
-        ]).toArray()
+    // for (let i = 0; i < data.length; i++) {
+    //     if (i % 100 == 0) console.log(i * 100 / data.length)
+    //     try {
+    //         this.entityCollection.updateOne({ _id: ObjectId(data[i]._id._id) }, { $set: { upcomingEvents: data[i].events.map((eventDoc) => { return new EventMinimal(eventDoc) }) } })
+    //     } catch (error) {
+    //         console.log(data[i])
+    //     }
+    // }
 
-        for (let i = 0; i < data.length; i++) {
-            if (i % 100 == 0) console.log(i * 100 / data.length)
-            try {
-                this.entityCollection.updateOne({ _id: ObjectId(data[i]._id._id) }, { $set: { upcomingEvents: data[i].events.map((eventDoc) => { return new EventMinimal(eventDoc) }) } })
-            } catch (error) {
-                console.log(data[i])
-            }
-        }
-    }
+
+    // }
 
     static eventById = async (req) => {
         const response = await this.eventCollection.findOne({
@@ -104,7 +114,7 @@ class Event {
     }
 
     static uploadEventOnMongoDB = async (eventToAdd) => {
-        await this.eventCollection.insertOne(eventToAdd)
+        this.eventCollection.insertOne(eventToAdd)
         const addedEvent = await this.eventCollection.findOne({ facebook: eventToAdd.facebook })
         return addedEvent
     }

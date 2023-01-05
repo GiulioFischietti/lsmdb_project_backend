@@ -14,7 +14,8 @@
     "cors": "^2.8.5",
     "express": "^4.17.3",
     "mongodb": "^4.4.0",
-    "neo4j-driver": "^4.4.3"
+    "neo4j-driver": "^4.4.3",
+    "node-cron": "^3.0.2"
   },
   "devDependencies": {
     "dotenv": "^16.0.0",

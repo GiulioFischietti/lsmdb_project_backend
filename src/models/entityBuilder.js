@@ -3,7 +3,7 @@ const { Club } = require("./club");
 const { Organizer } = require("./organizer");
 
 const buildEntity = (data) => {
-    if (data.type == null) return null;
+    // if (data.type == null) return null;
     switch (data.type) {
         case "artist":
             return new Artist(data)

@@ -16,7 +16,7 @@ const addReviews = async (req, res) => {
         }
 
         if (reviews_to_add.length > 0) {
-            const reviewsAdded = await Review.uploadReviews(req.body.reviews.map((item)=> new Review))
+            const reviewsAdded = await Review.uploadReviews(req.body.reviews.map((item) => new Review))
             // await client.db('needfy').collection('collapsed_organizers').updateOne({ _id: ObjectId(reviews_to_add[0].entity_id) }, { $set: { retrieved_reviews: true } })
         }
 
@@ -27,6 +27,12 @@ const addReviews = async (req, res) => {
     res.status(200).send({ "success": true, "data": "added" + reviews_to_add.length })
 }
 
+const recalculateReviewIds = async (req, res) => {
+    await Review.recalculateReviewIds();
+    res.status(200).send({ "success": true, "data": null })
+}
+
 module.exports = {
-    addReviews
+    addReviews,
+    recalculateReviewIds
 }

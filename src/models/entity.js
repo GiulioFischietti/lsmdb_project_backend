@@ -1,5 +1,7 @@
 const { ObjectId, Db } = require('mongodb');
 const { MongoCollection } = require('../config/mongoCollection');
+const { EventMinimal } = require('./EventMinimal');
+// const buildEntity = require('./entityBuilder')
 const { Review } = require('./review');
 
 class Entity {
@@ -18,6 +20,7 @@ class Entity {
         this.facebook = data.facebook;
         this.email = data.email;
         this.phones = data.phones;
+        this.loginNeeded = data.loginNeeded;
         this.facebookDescription = data.facebookDescription;
         this.websites = data.websites;
         this.reviews = data.reviews != null ? data.reviews.map((item) => new Review(item)) : []
@@ -28,8 +31,27 @@ class Entity {
         return await this.mongoCollection.find({ type: "club", "location": { $exists: true }, "address": { $exists: true, $nin: ["", null] } }).sort({ lastUpdatedEvent: 1 }).toArray()
     }
 
-   
+    static getEntitiesToUpdate = async () => {
+        return await this.mongoCollection.find({ type: "club", address: { $in: [null, ""] }, "location.coordinates": { $exists: false } }).toArray()
+    }
 
+    static loadUpcomingEvent = async (addedEvent) => {
+        var entitiesToUpdate = addedEvent.organizers.concat(addedEvent.artists)
+        for (let i = 0; i < entitiesToUpdate.length; i++) {
+            console.log("ADDING EVENT ")
+            console.log(new EventMinimal(addedEvent))
+            console.log("TO")
+            console.log(entitiesToUpdate[i])
+            this.mongoCollection.updateOne({ _id: ObjectId(entitiesToUpdate[i]._id) }, { $push: { upcomingEvents: new EventMinimal(addedEvent) } })
+        }
+    }
+
+    static updateUpcomingEvents = async () => {
+        console.log("Updating upcoming events...")
+        this.mongoCollection.updateMany({ "upcomingEvents.start": { $lte: new Date() } }, { $pull: { upcomingEvents: { start: { $lte: new Date() } } } })
+        console.log("Done")
+    }
+    
     static entityById = async (req) => {
         const entity = await this.mongoCollection.findOne({
             _id: ObjectId(req.query._id)
@@ -64,11 +86,35 @@ class Entity {
 
     static loadEntity = async (entityToAdd) => {
         const response = await this.mongoCollection.insertOne(entityToAdd)
+        return response;
     }
 
     static updateEntityDateTime = async (id) => {
         this.mongoCollection.updateOne({ _id: ObjectId(id) }, { $set: { lastUpdatedEvent: new Date() } });
     }
+
+    static updateEntity = async (id, entity) => {
+        // delete entity._id
+        // delete entity.image
+
+        // const entityRetrieved = await this.mongoCollection.findOne({ _id: ObjectId(id) })
+        // if (entityRetrieved.phones != null) {
+        //     if (entityRetrieved.phones.length > 0) {
+        //         delete entity.phones
+        //     }
+        // }
+
+
+        // if (entityRetrieved.websites != null) {
+        //     if (entityRetrieved.websites.length > 0) {
+        //         delete entity.websites
+        //     }
+        // }
+
+        this.mongoCollection.updateOne({ _id: ObjectId(id) }, { $set: entity });
+        // this.mongoCollection.updateOne({ _id: ObjectId(id) }, { $unset: { ig: 1 } });
+    }
+
 }
 
 module.exports = {
