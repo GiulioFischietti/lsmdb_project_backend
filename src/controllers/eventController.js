@@ -36,7 +36,7 @@ const searchEvents = async (req, res) => {
                 $near: {
                     $geometry: {
                         type: "Point",
-                        coordinates: [req.body.lat, req.body.lon]
+                        coordinates: [req.body.lon, req.body.lat]
                     },
                     $maxDistance: req.body.maxDistance,
                     $minDistance: 0

@@ -23,8 +23,58 @@ const updateUser = async (req, res) => {
         res.status(500).send({ "success": false })
     }
 }
+const likeEvent = async (req, res) => {
+
+    try {
+        console.log(req.body)
+        User.likeEvent(req.body.userId, req.body.eventId, req.body.start)
+        res.status(200).send({ "success": true })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
+
+const dislikeEvent = async (req, res) => {
+
+    try {
+        User.dislikeEvent(req.body.userId, req.body.eventId, req.body.start)
+        res.status(200).send({ "success": true })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
+
+
+
+const followEntity = async (req, res) => {
+
+    try {
+        User.followEntity(req.body.userId, req.body.entityId)
+        res.status(200).send({ "success": true })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
+
+const unFollowEntity = async (req, res) => {
+
+    try {
+        User.unFollowEntity(req.body.userId, req.body.entityId)
+        res.status(200).send({ "success": true })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
 
 module.exports = {
     userById,
-    updateUser
+    updateUser,
+    followEntity,
+    unFollowEntity,
+    likeEvent,
+    dislikeEvent
 }

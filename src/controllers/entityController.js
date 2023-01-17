@@ -9,7 +9,7 @@ const getAllClubs = async (req, res) => {
         res.status(200).send({ "success": true, data: response.map((item) => new Club(item)) })
     } catch (error) {
         console.log(error)
-        res.status(500).send({ "success": false, data: clubs })
+        res.status(500).send({ "success": false, data: null })
     }
 }
 
@@ -42,11 +42,36 @@ const updateEntity = async (req, res) => {
         res.status(500).send({ "success": false, data: null })
     }
 }
+
+
+const searchEntities = async (req, res) => {
+    try {
+        var parameters = {
+            "location": {
+                $near: {
+                    $geometry: {
+                        type: "Point",
+                        coordinates: [req.body.lon, req.body.lat]
+                    },
+                    $maxDistance: req.body.maxDistance,
+                    $minDistance: 0
+                }
+            }
+        }
+        
+        const searched_events = await Entity.searchEntities(parameters)
+        res.status(200).send({ "success": true, "data": searched_events })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+}
 const loadEntity = async (req, res) => {
     try {
         const entity = buildEntity(req.body.entity)
-        var insertedDocument = await Entity.loadEntity(entity);
-        res.status(200).send({ "success": true, "data": ObjectId(insertedDocument.insertedId) })
+        var _id = await Entity.loadEntity(entity);
+        res.status(200).send({ "success": true, "data": _id })
     } catch (error) {
         console.log(error)
         res.status(500).send({ "success": false, data: null })
@@ -111,6 +136,7 @@ module.exports = {
     entityByName,
     entitiesWithLocation,
     updateEntity,
-    getEntitiesToUpdate
+    getEntitiesToUpdate,
+    searchEntities
 
 }

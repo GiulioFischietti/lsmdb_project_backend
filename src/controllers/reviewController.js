@@ -27,6 +27,14 @@ const addReviews = async (req, res) => {
     res.status(200).send({ "success": true, "data": "added" + reviews_to_add.length })
 }
 
+const addReview = async (req, res) => {
+    try {
+        Review.createReview(req.body.review)
+        res.status(200).send({ "success": true, "data": null })
+    } catch (error) {
+        console.log(error)
+    }
+}
 const recalculateReviewIds = async (req, res) => {
     await Review.recalculateReviewIds();
     res.status(200).send({ "success": true, "data": null })
@@ -34,5 +42,6 @@ const recalculateReviewIds = async (req, res) => {
 
 module.exports = {
     addReviews,
-    recalculateReviewIds
+    recalculateReviewIds,
+    addReview
 }

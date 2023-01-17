@@ -26,6 +26,8 @@ class Event {
 
     constructor(data) {
         if (data == null) return null
+        
+       
         this._id = ObjectId(data._id);
         this.name = data.name;
         this.description = data.description;
@@ -104,7 +106,7 @@ class Event {
     }
 
     static searchEvents = async (parameters) => {
-        const response = await this.eventCollection.find(parameters).toArray()
+        const response = await this.eventCollection.find(parameters).sort({start: 1}).toArray()
         return response.map((item) => new Event(item))
     }
 
@@ -114,13 +116,13 @@ class Event {
     }
 
     static uploadEventOnMongoDB = async (eventToAdd) => {
-        this.eventCollection.insertOne(eventToAdd)
+        await this.eventCollection.insertOne(eventToAdd)
         const addedEvent = await this.eventCollection.findOne({ facebook: eventToAdd.facebook })
+        // console.log(addedEvent)
         return addedEvent
     }
 
     static uploadEventOnNeo4j = async (eventToAdd) => {
-        // console.log(eventToAdd)
         for (let i = 0; i < eventToAdd.organizers.length; i++) {
             await neo4jClient.run(`MERGE (n:EventNode {object_id: "$object_id", name: "$name", image: "$image", date_start: "$start", genres: "$genres"})
             MERGE(m: EntityNode { object_id: "$entity_object_id", name: "$entity_name", image: "$entity_image", type: "$type" })

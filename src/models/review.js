@@ -1,20 +1,21 @@
 const { ObjectId } = require("mongodb");
 const { MongoCollection } = require("../config/mongoCollection");
+const { EntityMinimal } = require("./entityMinimal");
+const { UserMinimal } = require("./UserMinimal");
 
 class Review {
     static mongoCollection = new MongoCollection({ collection: "reviews" })
-    static entityCollection = new MongoCollection({ collection: "reviews" })
+    static entityCollection = new MongoCollection({ collection: "entities" })
 
     constructor(data) {
         if (data == null) return null
         this._id = data._id;
-        this.username = data.username;
         this.description = data.description;
         this.rate = data.rate;
         this.images = data.images;
-        this.propic = data.propic;
         this.createdAt = data.createdAt;
-        this.entity_id = data.entity_id;
+        this.entity = new EntityMinimal(data.entity);
+        this.user = new UserMinimal(data.user);
     }
 
     static isDuplicate = async (review) => {
@@ -27,8 +28,21 @@ class Review {
     }
 
     static createReview = async (review) => {
-        const reviewToAdd = new Review(review);
-        this.mongoCollection.insert(reviewToAdd);
+        var reviewToAdd = new Review(review);
+        
+        const response = await this.mongoCollection.insertOne(reviewToAdd);
+        reviewToAdd._id = ObjectId(response.insertedId);
+        var entityId = reviewToAdd.entity._id
+        // reviewToAdd.entity = null
+        delete reviewToAdd.entity
+
+        await this.entityCollection.updateOne({ _id: entityId }, { $push: { reviewIds: { $each: [reviewToAdd._id], $position: 0 }, reviews: { $each: [reviewToAdd], $position: 0 } } })
+        const entity = await this.entityCollection.findOne({ _id: entityId })
+
+        if (entity.reviews.length > 10) {
+            this.entityCollection.updateOne({ _id: entityId }, { $pull: { reviews: entity.reviews[10] } })
+        }
+
     }
 
     static uploadReviews = async (reviewsToAdd) => {

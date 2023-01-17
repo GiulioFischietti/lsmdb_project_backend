@@ -4,6 +4,9 @@ const { MongoCollection } = require('../config/mongoCollection');
 class EntityMinimal {
     static mongoCollection = new MongoCollection({ collection: "entities" })
     constructor(data) {
+        // console.log("ENTITY MINIMAL CONSTRUCTOR DATA:")
+        // console.log(data)
+        
         if (data == null) return null
         this._id = ObjectId(data._id);
         this.name = data.name;
@@ -19,7 +22,7 @@ class EntityMinimal {
 
     static entityByFacebookMinimal = async (facebookLink) => {
         const response = await this.mongoCollection.findOne({
-            "facebook": facebookLink
+            "facebookLinks": facebookLink
         },
             {
                 projection: {

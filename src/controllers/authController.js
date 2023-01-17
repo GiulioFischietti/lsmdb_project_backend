@@ -6,7 +6,8 @@ const signUp = async (req, res) => {
         const user = await User.getUserByUsername(req)
         if (user._id == null) {
             const hashedPassword = await bcrypt.hash(req.body.password, 10)
-            const newUser = await User.createUser(req, hashedPassword)
+            req.body.password = hashedPassword
+            const newUser = await User.createUser(req.body, hashedPassword)
             res.status(200).send({ success: true, data: newUser });
         }
         else {

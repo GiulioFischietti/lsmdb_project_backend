@@ -15,15 +15,18 @@ class Entity {
         this.name = data.name;
         this.description = data.description;
         this.image = data.image;
+        this.socialMedias = data.socialMedias != null ? data.socialMedias : [];
         this.type = data.type;
         this.createdAt = new Date();
-        this.facebook = data.facebook;
+        this.facebookLinks = data.facebookLinks;
         this.email = data.email;
         this.phones = data.phones;
+        this.avgRate = data.avgRate;
         this.loginNeeded = data.loginNeeded;
         this.facebookDescription = data.facebookDescription;
         this.websites = data.websites;
         this.reviews = data.reviews != null ? data.reviews.map((item) => new Review(item)) : []
+        this.upcomingEvents = data.upcomingEvents != null ? data.upcomingEvents.map((item) => new EventMinimal(item)) : []
         this.reviewIds = data.reviewIds != null ? data.reviewIds : []
     }
 
@@ -35,14 +38,16 @@ class Entity {
         return await this.mongoCollection.find({ type: "club", address: { $in: [null, ""] }, "location.coordinates": { $exists: false } }).toArray()
     }
 
+    static searchEntities = async (parameters) => {
+        const response = await this.mongoCollection.find(parameters).limit(8).toArray()
+        return response.map((item) => new Entity(item))
+    }
+
     static loadUpcomingEvent = async (addedEvent) => {
+        // console.log(addedEvent)
         var entitiesToUpdate = addedEvent.organizers.concat(addedEvent.artists)
         for (let i = 0; i < entitiesToUpdate.length; i++) {
-            console.log("ADDING EVENT ")
-            console.log(new EventMinimal(addedEvent))
-            console.log("TO")
-            console.log(entitiesToUpdate[i])
-            this.mongoCollection.updateOne({ _id: ObjectId(entitiesToUpdate[i]._id) }, { $push: { upcomingEvents: new EventMinimal(addedEvent) } })
+            this.mongoCollection.updateOne({ _id: ObjectId(entitiesToUpdate[i]._id) }, { $addToSet: { upcomingEvents: new EventMinimal(addedEvent) } })
         }
     }
 
@@ -51,7 +56,7 @@ class Entity {
         this.mongoCollection.updateMany({ "upcomingEvents.start": { $lte: new Date() } }, { $pull: { upcomingEvents: { start: { $lte: new Date() } } } })
         console.log("Done")
     }
-    
+
     static entityById = async (req) => {
         const entity = await this.mongoCollection.findOne({
             _id: ObjectId(req.query._id)
@@ -79,14 +84,24 @@ class Entity {
 
     static entityByFacebook = async (facebookLink) => {
         const entity = await this.mongoCollection.findOne({
-            facebook: facebookLink
+            facebookLinks: facebookLink
         })
         return entity
     }
 
     static loadEntity = async (entityToAdd) => {
-        const response = await this.mongoCollection.insertOne(entityToAdd)
-        return response;
+        // console.log("LOADING ENTITY")
+        // console.log(entityToAdd)
+        const entity = await this.mongoCollection.findOne({ name: entityToAdd.name, description: entityToAdd.description })
+        if (entity == null) {
+            const response = await this.mongoCollection.insertOne(entityToAdd)
+            return response.insertedId;
+        }
+        else {
+            this.mongoCollection.updateOne({_id: ObjectId(entity._id)}, {$addToSet: {facebookLinks: {$each: entityToAdd.facebookLinks}}})
+            console.log(entityToAdd.facebookLinks)
+            return entity._id
+        }
     }
 
     static updateEntityDateTime = async (id) => {
