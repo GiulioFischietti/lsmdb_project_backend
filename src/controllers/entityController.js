@@ -2,6 +2,12 @@ const { ObjectId } = require('mongodb');
 const { Club } = require('../models/club');
 const { Entity } = require('../models/entity');
 const { buildEntity } = require('../models/entityBuilder');
+const { EntityMinimal } = require('../models/entityMinimal');
+const { Manager } = require('../models/manager');
+const { Review } = require('../models/review');
+const { User } = require('../models/user');
+const { Event } = require('../models/event');
+const { EventMinimal } = require('../models/EventMinimal');
 
 const getAllClubs = async (req, res) => {
     try {
@@ -22,7 +28,15 @@ const getEntitiesToUpdate = async (req, res) => {
         res.status(500).send({ "success": false, data: clubs })
     }
 }
-
+const getTopRatedEntities = async (req, res) => {
+    try {
+        const response = await Entity.topRatedEntities(req.query.skip);
+        res.status(200).send({ "success": true, data: response })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
 const updateEntityDateTime = async (req, res) => {
     try {
         Entity.updateEntityDateTime(req.body.id);
@@ -33,9 +47,21 @@ const updateEntityDateTime = async (req, res) => {
     }
 }
 
-const updateEntity = async (req, res) => {
+const followEntity = async (req, res) => {
     try {
-        Entity.updateEntity(req.body.id, req.body.entity);
+        User.increaseFollowingNumber(req.body.userId)
+        Entity.followEntity(req.body.entityId, req.body.userId);
+        res.status(200).send({ "success": true, data: null });
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
+
+const unfollowEntity = async (req, res) => {
+    try {
+        User.decreaseFollowingNumber(req.body.userId)
+        Entity.unfollowEntity(req.body.entityId, req.body.userId);
         res.status(200).send({ "success": true, data: null });
     } catch (error) {
         console.log(error)
@@ -44,9 +70,26 @@ const updateEntity = async (req, res) => {
 }
 
 
+const updateEntity = async (req, res) => {
+    try {
+        let {_id, ...entity} = req.body.entity
+        
+        Entity.updateEntity(ObjectId(_id), entity);
+        Manager.updateManagedEntity(ObjectId(req.body.userId), entity);
+        Event.updateEmbeddedEntities(_id, new EntityMinimal(entity))
+        Review.updateEmbeddedEntity(_id, new EntityMinimal(entity))
+        res.status(200).send({ "success": true, data: null });
+        
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
+
 const searchEntities = async (req, res) => {
     try {
         var parameters = {
+            "type": req.body.type,
             "location": {
                 $near: {
                     $geometry: {
@@ -58,8 +101,8 @@ const searchEntities = async (req, res) => {
                 }
             }
         }
-        
-        const searched_events = await Entity.searchEntities(parameters)
+
+        const searched_events = await Entity.searchEntities(parameters, req.body.skip)
         res.status(200).send({ "success": true, "data": searched_events })
 
     } catch (error) {
@@ -122,7 +165,7 @@ const entityByFacebook = async (req, res) => {
 
     } catch (error) {
         console.log(error)
-        res.status(500).send({ "error": error })
+
     }
 }
 
@@ -137,6 +180,8 @@ module.exports = {
     entitiesWithLocation,
     updateEntity,
     getEntitiesToUpdate,
-    searchEntities
-
+    searchEntities,
+    followEntity,
+    unfollowEntity,
+    getTopRatedEntities
 }

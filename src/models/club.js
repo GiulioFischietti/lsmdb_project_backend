@@ -5,7 +5,7 @@ class Club extends Entity {
     constructor(data) {
         if (data == null) return null
         super(data);
-        this.assignedTo = data.assignedTo;
+        // this.assignedTo = data.assignedTo;
         this.location = data.location;
         this.address = data.address;
         this.lastUpdatedEvent = data.lastUpdatedEvent;

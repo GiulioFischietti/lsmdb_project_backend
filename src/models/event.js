@@ -26,8 +26,7 @@ class Event {
 
     constructor(data) {
         if (data == null) return null
-        
-       
+
         this._id = ObjectId(data._id);
         this.name = data.name;
         this.description = data.description;
@@ -39,43 +38,39 @@ class Event {
         }
         this.genres = data.genres;
         this.facebook = data.facebook;
+        this.dist = data.dist;
         this.image = data.image;
         this.organizers = data.organizers.map((item) => new EntityMinimal(item));
         this.artists = data.artists.map((item) => new EntityMinimal(item));
         this.club = data.club != null ? new EntityMinimal(data.club) : {};
         this.address = data.address;
+        this.likedByUser = data.likedByUser != null ? data.likedByUser : false;
         this.location = data.location;
+        this.likedBy = data.likedBy != null ? data.likedBy : []
         this.createdAt = new Date()
+
+        if (this.likedByUser == null) delete this.likedByUser
+        if (this.dist == null) delete this.dist
     }
 
-    // static updateUpcomingEvents = async () => {
-    // da modificare semplicemnete con una rimozione degli eventi vecchi: questp script va bene come prima aggiunta per inizializzare ilcampo 
-    // var data = await this.eventCollection.aggregate([
-    //     { $match: { start: { $gte: new Date() } } },
-    //     { $project: { _id: "$_id", name: "$name", image: "$image", start: "$start", genres: "$genres", address: "$address", organizers: "$organizers", artists: "$artists" } },
-    //     { $addFields: { entities: { $concatArrays: ["$organizers", "$artists"] } } },
-    //     { $unwind: { path: "$entities" } },
-    //     { $group: { _id: "$entities", events: { $push: "$$ROOT" } } },
-    //     { $sort: { "_id._id": 1 } }
-    // ]).toArray()
-
-    // for (let i = 0; i < data.length; i++) {
-    //     if (i % 100 == 0) console.log(i * 100 / data.length)
-    //     try {
-    //         this.entityCollection.updateOne({ _id: ObjectId(data[i]._id._id) }, { $set: { upcomingEvents: data[i].events.map((eventDoc) => { return new EventMinimal(eventDoc) }) } })
-    //     } catch (error) {
-    //         console.log(data[i])
-    //     }
-    // }
+    static updateEmbeddedEntities = async (_id, entity) => {
+        this.eventCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
+        this.eventCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
+        this.eventCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
 
 
-    // }
+        this.analyticsEventsCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
+        this.analyticsEventsCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
+        this.analyticsEventsCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
+    }
 
     static eventById = async (req) => {
-        const response = await this.eventCollection.findOne({
-            _id: ObjectId(req.query._id)
-        })
-        return new Event(response)
+        const response = await this.eventCollection.aggregate([
+            {
+                $match: { _id: ObjectId(req.query._id) }
+            },
+            { $addFields: { likedByUser: { $in: [ObjectId(req.query.userId), "$likedBy"] } } }]).toArray()
+        return new Event(response[0])
     }
 
     static eventByFacebook = async (req) => {
@@ -83,6 +78,15 @@ class Event {
             facebook: req.query.facebook
         })
         return new Event(response)
+    }
+
+    static eventsByEntity = async (entityId, skip) => {
+        skip = parseFloat(skip)
+        const response = await this.analyticsEventsCollection.find({
+            "organizers._id": ObjectId(entityId),
+        }).sort({ start: -1 }).skip(skip).limit(10).toArray()
+        // console.log(response)
+        return response
     }
 
     static amountEventsScraped = async (req) => {
@@ -105,8 +109,18 @@ class Event {
         return response.map((item) => new Event(item))
     }
 
-    static searchEvents = async (parameters) => {
-        const response = await this.eventCollection.find(parameters).sort({start: 1}).toArray()
+    static likeEvent = async (eventId, userId) => {
+        this.eventCollection.updateOne({ _id: ObjectId(eventId) }, { $addToSet: { likedBy: ObjectId(userId) } })
+    }
+
+    static dislikeEvent = async (eventId, userId) => {
+        this.eventCollection.updateOne({ _id: ObjectId(eventId) }, { $pull: { likedBy: ObjectId(userId) } })
+    }
+
+    static searchEvents = async (parameters, userId, skip) => {
+        // db.events.aggregate([{$addFields: {liked: {$in: [ObjectId("638df65605393857c40b8941"), "$likedBy" ]} }}, {$limit: 10}])
+        const response = await this.eventCollection.aggregate([parameters, { $addFields: { likedByUser: { $in: [ObjectId(userId), "$likedBy"] } } }, { $sort: { start: 1 } }, { $skip: skip }, { $limit: 5 }]).toArray()
+        // console.log(response);
         return response.map((item) => new Event(item))
     }
 
@@ -117,9 +131,13 @@ class Event {
 
     static uploadEventOnMongoDB = async (eventToAdd) => {
         await this.eventCollection.insertOne(eventToAdd)
-        const addedEvent = await this.eventCollection.findOne({ facebook: eventToAdd.facebook })
-        // console.log(addedEvent)
-        return addedEvent
+        const insertedEvent = await this.eventCollection.findOne({ _id: ObjectId(eventToAdd._id) })
+        console.log(insertedEvent)
+        return insertedEvent
+    }
+
+    static updateEventOnMongoDB = async (id, event) => {
+        this.eventCollection.updateOne({_id: ObjectId(id)}, {$set: event})
     }
 
     static uploadEventOnNeo4j = async (eventToAdd) => {

@@ -20,7 +20,7 @@ class AnalyticsEvent {
 
     constructor(data) {
         if (data == null) return null
-        this._id = ObjectId(data._id);
+        this._id = data._id != null ? ObjectId(data._id) : null;
         this.name = data.name;
         this.description = data.description;
         this.start = new Date(data.start);
@@ -35,11 +35,24 @@ class AnalyticsEvent {
         this.address = data.address;
         this.location = data.location;
         this.createdAt = new Date()
+
+        if(data._id == null) delete this._id
     }
 
     static uploadAnalyticsEventOnMongoDB = async (eventToAdd) => {
         const eventAdded = await this.analyticsEventsCollection.insertOne(eventToAdd)
         return eventAdded.insertedId
+    }
+
+    static updateAnalyticsEventOnMongoDB = async (id, event) => {
+        console.log(id)
+        const eventAdded = await this.analyticsEventsCollection.updateOne({_id: ObjectId(id)}, {$set: new AnalyticsEvent(event)})
+        
+    }
+
+    static getallevents = async () => {
+        const response = await this.analyticsEventsCollection.aggregate([{$match: { location: { $exists: true }, "location.coordinates": { $ne: [0, 0] } }}, {$sample: {size: 10000}}]).toArray()
+        return response
     }
 }
 

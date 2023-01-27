@@ -8,7 +8,8 @@ class EntityMinimal {
         // console.log(data)
         
         if (data == null) return null
-        this._id = ObjectId(data._id);
+        this._id = data._id != null ? ObjectId(data._id) : null;
+        
         this.name = data.name;
 
         if (data.type != null)
@@ -18,6 +19,7 @@ class EntityMinimal {
         if (data.image != null)
             this.image = data.image;
         else data.image = "null"
+
     }
 
     static entityByFacebookMinimal = async (facebookLink) => {

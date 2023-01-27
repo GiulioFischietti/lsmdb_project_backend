@@ -1,69 +1,64 @@
-const { Review } = require("./review");
 const { MongoCollection } = require('../config/mongoCollection');
 const { ObjectId } = require("mongodb");
+const { RegisteredUser } = require('./registeredUser');
 
-class User {
+class User extends RegisteredUser {
     static mongoQueryBuilder = new MongoCollection({ collection: "users" })
     constructor(data) {
-        console.log(data)
+        super(data)
         if (data == null) return null
-        this._id = data._id;
-        this.name = data.name;
-        this.password = data.password;
-        this.birthday = data.birthday;
-        this.bio = data.bio;
-        this.image = data.image;
-        this.username = data.username;
+        this.role = "user"
         this.reviews = data.reviews != null ? data.reviews : [];
-        this.followingEntities = data.followingEntities != null ? data.followingEntities : [];
-        this.followingUsers = data.followingUsers != null ? data.followingUsers : [];
-        this.likesEvents = data.likesEvents != null ? data.likesEvents : [];
-
-        this.createdAt = data.createdAt;
-        this.updatedAt = data.updatedAt;
+        this.nFollowers = data.nFollowers != null ? data.nFollowers : 0
+        this.nLikes = data.nLikes != null ? data.nLikes : 0
+        this.nFollowings = data.nFollowings != null ? data.nFollowings : 0
     }
 
-    static getUserByUsername = async (req) => {
-        const user = await this.mongoQueryBuilder.findOne({ username: req.body.username });
-        return new User(user)
+    static increaseFollowerNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: 1 } })
+    }
+    
+    static decreaseFollowerNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: -1 } })
+    }
+
+    static increaseFollowingNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: 1 } })
+    }
+
+    static decreaseFollowingNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: -1 } })
+    }
+
+    static increaseLikesNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nLikes: 1 } })
+    }
+
+    static decreaseLikesNumber = async (userId) => {
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nLikes: -1 } })
     }
 
     static likeEvent = async (userId, eventId, start) => {
-        
-        this.mongoQueryBuilder.updateOne({_id: ObjectId(userId)}, {$addToSet: {likesEvents:{_id: ObjectId(eventId), "start": new Date(start)}}})
+
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $addToSet: { likesEvents: { _id: ObjectId(eventId), "start": new Date(start) } } })
     }
 
     static dislikeEvent = async (userId, eventId, start) => {
-        this.mongoQueryBuilder.updateOne({_id: ObjectId(userId)}, {$pull: {likesEvents:{_id: ObjectId(eventId), "start": new Date(start)}}})
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $pull: { likesEvents: { _id: ObjectId(eventId), "start": new Date(start) } } })
     }
 
     static followEntity = async (userId, entityId) => {
-        this.mongoQueryBuilder.updateOne({_id: ObjectId(userId)}, {$addToSet: {followingEntities: ObjectId(entityId)}})
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $addToSet: { followingEntities: ObjectId(entityId) } })
     }
 
     static unFollowEntity = async (userId, entityId) => {
-        this.mongoQueryBuilder.updateOne({_id: ObjectId(userId)}, {$pull: {followingEntities: ObjectId(entityId)}})
+        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $pull: { followingEntities: ObjectId(entityId) } })
     }
 
-    static createUser = async (userData, hashedPassword) => {
-        userData.createdAt = new Date()
-        userData.updatedAt = new Date()
-        const response = await this.mongoQueryBuilder.insertOne(new User(userData))
-        return response
-    }
 
-    static userById = async (req) => {
-        const response = await this.mongoQueryBuilder.findOne({
-            _id: ObjectId(req.query._id)
-        })
-        return new User(response)
-    }
+    static addReviewedEntity = async (userId, entityId) => {
+        this.mongoQueryBuilder.updateOne({ _id: userId }, { $addToSet: { reviewedEntities: entityId } })
 
-    static updateUser = async (params) => {
-        const response = await this.mongoQueryBuilder.updateOne({
-            _id: ObjectId(req.body._id)
-        }, { $set: params }, { upsert: false })
-        return response
     }
 
     static removePastLikedEvents = async () => {

@@ -1,6 +1,7 @@
 const { Event } = require('../models/event');
 const { Entity } = require('../models/entity');
 const { AnalyticsEvent } = require('../models/analyticsEvent');
+const { User } = require('../models/user');
 
 const eventByFacebook = async (req, res) => {
     try {
@@ -31,24 +32,46 @@ const recentData = async (req, res) => {
 
 const searchEvents = async (req, res) => {
     try {
-        var parameters = {
-            "location": {
-                $near: {
-                    $geometry: {
-                        type: "Point",
-                        coordinates: [req.body.lon, req.body.lat]
-                    },
-                    $maxDistance: req.body.maxDistance,
-                    $minDistance: 0
-                }
+        var parameters = {}
+        if (req.body.start != null) parameters.start = { $gte: (new Date(req.body.start)) }
+        if (req.body.genres != null && req.body.genres != []) parameters.genres = req.body.genres
+
+
+        var nearAggreagation = {
+            $geoNear: {
+                near: { type: "Point", coordinates: [req.body.lon, req.body.lat] },
+                distanceField: "dist.calculated",
+                maxDistance: req.body.maxDistance,
+                query: parameters,
             }
         }
-        if (req.body.start != null) parameters.start = { $gte: (new Date(req.body.start)) }
-        if (req.body.name != null) parameters.name = { $regex: req.body.name }
-        if (req.body.genres != null && req.body.genres != []) parameters.genres = { $in: req.body.genres }
 
-        const searched_events = await Event.searchEvents(parameters)
+        const searched_events = await Event.searchEvents(nearAggreagation, req.body.userId, req.body.skip)
         res.status(200).send({ "success": true, "data": searched_events })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+}
+
+
+const likeEvent = async (req, res) => {
+    try {
+        Event.likeEvent(req.body.eventId, req.body.userId);
+        User.increaseLikesNumber(req.body.userId)
+        res.status(200).send({ "success": true, "data": null })
+
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+}
+const dislikeEvent = async (req, res) => {
+    try {
+        User.decreaseLikesNumber(req.body.userId)
+        Event.dislikeEvent(req.body.eventId, req.body.userId);
+        res.status(200).send({ "success": true, "data": null })
 
     } catch (error) {
         console.log(error)
@@ -67,9 +90,21 @@ const eventById = async (req, res) => {
     }
 }
 
-const uploadEvent = async (req, res) => {
-    var eventToAdd = new Event(req.body.data)
+const eventsByEntity = async (req, res) => {
+    try {
+        const events = await Event.eventsByEntity(req.query.entityId, req.query.skip)
+        res.status(200).send({ "success": true, "data": events })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "error": error })
+    }
+}
 
+const uploadEvent = async (req, res) => {
+
+    var {_id, ...eventJson} = req.body.data
+    var eventToAdd = new Event(eventJson)
+    // console.log(eventToAdd)
     const event = await Event.findEventByNameAndStart(eventToAdd)
 
     if (event == null) {
@@ -91,6 +126,21 @@ const uploadEvent = async (req, res) => {
     }
 }
 
+const updateEvent = async (req, res) => {
+    var {_id, ...event} = req.body
+    try {
+        // console.log(event)
+        AnalyticsEvent.updateAnalyticsEventOnMongoDB(_id, event)
+        Event.updateEventOnMongoDB(_id, event)
+        Entity.updateUpcomingEvent(_id, event)
+        res.status(200).send({ "success": true, "data": null })
+    } catch (error) {
+        console.log(error)
+        res.status(200).send({ "success": false, "data": "Event not added" })
+    }
+
+}
+
 
 const uploadExistingEventOnNeo4j = async (req, res) => {
     try {
@@ -105,20 +155,10 @@ const uploadExistingEventOnNeo4j = async (req, res) => {
 }
 
 const allEvents = async (req, res) => {
-    const events = await Event.getAllEvents();
+    const events = await AnalyticsEvent.getallevents();
     res.status(200).send({ "success": true, "data": events })
 }
 
-// const updateUpcomingEvents = async () => {
-//     try {
-//         // console.log("aaaaaaaaaaaaaaa")
-//         const response = await Event.updateUpcomingEvents();
-//         // res.status(200).send({ "success": true, data: response });
-//     } catch (error) {
-//         console.log(error)
-//         // res.status(500).send({ "success": false, data: null })
-//     }
-// }
 
 module.exports = {
     eventByFacebook,
@@ -126,7 +166,14 @@ module.exports = {
     recentData,
     searchEvents,
     eventById,
+
     uploadEvent,
+    updateEvent,
+
+    likeEvent,
+    dislikeEvent,
+    eventsByEntity,
     allEvents,
     uploadExistingEventOnNeo4j,
+    
 }

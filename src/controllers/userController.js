@@ -1,8 +1,9 @@
+const { RegisteredUser } = require('../models/registeredUser');
 const { User } = require('../models/user');
 
 const userById = async (req, res) => {
     try {
-        const user = await User.userById(req)
+        const user = await RegisteredUser.userById(req)
         res.status(200).send({ "success": true, "data": user })
 
     } catch (error) {
@@ -14,19 +15,17 @@ const userById = async (req, res) => {
 const updateUser = async (req, res) => {
     const params = { ...req.body };
     delete params._id;
-
     try {
-        User.updateUser(req.body._id, params)
+        RegisteredUser.updateUser(req.body._id, params)
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log(error)
         res.status(500).send({ "success": false })
     }
 }
-const likeEvent = async (req, res) => {
 
+const likeEvent = async (req, res) => {
     try {
-        console.log(req.body)
         User.likeEvent(req.body.userId, req.body.eventId, req.body.start)
         res.status(200).send({ "success": true })
     } catch (error) {
@@ -49,7 +48,6 @@ const dislikeEvent = async (req, res) => {
 
 
 const followEntity = async (req, res) => {
-
     try {
         User.followEntity(req.body.userId, req.body.entityId)
         res.status(200).send({ "success": true })
