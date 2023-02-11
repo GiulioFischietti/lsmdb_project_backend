@@ -19,7 +19,7 @@ class Manager extends RegisteredUser {
     }
 
     static updateManagedEntity = async (userId, entity) => {
-        this.mongoCollection.updateOne({ _id: ObjectId(userId) }, {
+        return await this.mongoCollection.updateOne({ _id: ObjectId(userId) }, {
             $set: {
                 "managedEntity.phones": entity.phones,
                 "managedEntity.name": entity.name,

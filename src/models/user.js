@@ -1,59 +1,142 @@
 const { MongoCollection } = require('../config/mongoCollection');
 const { ObjectId } = require("mongodb");
 const { RegisteredUser } = require('./registeredUser');
+const { neo4jClient } = require('../config/neo4jDB');
+const { UserMinimal } = require('./UserMinimal');
 
 class User extends RegisteredUser {
     static mongoQueryBuilder = new MongoCollection({ collection: "users" })
+
     constructor(data) {
         super(data)
         if (data == null) return null
         this.role = "user"
         this.reviews = data.reviews != null ? data.reviews : [];
+        this.followedBy = data.followedBy != null ? data.followedBy : [];
         this.nFollowers = data.nFollowers != null ? data.nFollowers : 0
         this.nLikes = data.nLikes != null ? data.nLikes : 0
         this.nFollowings = data.nFollowings != null ? data.nFollowings : 0
+    }
+    
+    static createUserMongoDB = async (userData) => {
+        userData.createdAt = new Date()
+        userData.updatedAt = new Date()
+        userData = new User(userData)
+        const response = await this.mongoQueryBuilder.insertOne(userData)
+        userData._id = response.insertedId
+        
+        return userData
+    }
+
+
+    static getAllUsers = async (skip, limit) => {
+        return await this.mongoQueryBuilder.find({ followedBy: { $exists: true } }).skip(skip).limit(limit).toArray()
     }
 
     static increaseFollowerNumber = async (userId) => {
         this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: 1 } })
     }
-    
+
     static decreaseFollowerNumber = async (userId) => {
         this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: -1 } })
     }
 
     static increaseFollowingNumber = async (userId) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: 1 } })
+        return await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: 1 } })
     }
 
     static decreaseFollowingNumber = async (userId) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: -1 } })
+        return await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowings: -1 } })
     }
 
     static increaseLikesNumber = async (userId) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nLikes: 1 } })
+        return await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nLikes: 1 } })
     }
 
     static decreaseLikesNumber = async (userId) => {
         this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nLikes: -1 } })
     }
 
-    static likeEvent = async (userId, eventId, start) => {
 
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $addToSet: { likesEvents: { _id: ObjectId(eventId), "start": new Date(start) } } })
+    static getSuggestedFriendsOfUser = async (userId, myUserId, skip) => {
+        const response = await neo4jClient.run(`
+        match (u1:User {_id: "$myUserId"})-[:FOLLOWS]->(u2:User {_id: "$userId"})-[:FOLLOWS]->(u3:User)<-[f:FOLLOWS]-(u4:User)
+        with count(f) as followers, u1, u3
+        where not exists ((u1)-[:FOLLOWS]->(u3))
+        return u3
+        order by followers desc
+        skip $skip
+        limit 10`
+            .replace("$myUserId", myUserId)
+            .replace("$userId", userId)
+            .replace("$skip", skip)
+        )
+        return response.records.map((item) => { return new UserMinimal(item.toObject().u3.properties) })
+
     }
 
-    static dislikeEvent = async (userId, eventId, start) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $pull: { likesEvents: { _id: ObjectId(eventId), "start": new Date(start) } } })
+    static getSuggestedFriendsBasedOnLikes = async (userId, skip) => {
+        const response = await neo4jClient.run(
+            `MATCH (me:User{_id: "$userId"})-[f:LIKES]->(e:Event)<-[l:LIKES]-(u:User)
+            WITH count(l) as commonLikesCount, me,e,f,l,u
+            ORDER BY commonLikesCount desc
+            WHERE NOT EXISTS((me)-[:FOLLOWS]->(e))
+            RETURN u
+            skip $skip
+            limit 10`
+                .replace("$skip", skip)
+                .replace("$userId", userId)
+        )
+        return response.records.map((item) => { return new UserMinimal(item.toObject().u.properties) })
     }
 
-    static followEntity = async (userId, entityId) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $addToSet: { followingEntities: ObjectId(entityId) } })
+    static followedUsersNeo4j = async (userId, followers) => {
+        followers = followers.map((item) => { return '"' + item + '"'; })
+
+        await neo4jClient.run(`unwind [$followers] as loop
+        match (n:User {_id: loop}), (m:User {_id: "$userId"})  
+        create (n)-[:FOLLOWS]->(m);`
+            .replace("$userId", userId)
+            .replace("$followers", followers))
     }
 
-    static unFollowEntity = async (userId, entityId) => {
-        this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $pull: { followingEntities: ObjectId(entityId) } })
+    static getFollowers = async (userId, skip) => {
+        const response = await neo4jClient.run(`match (u1:User {_id: "$userId"})<-[:FOLLOWS]-(u2:User) return u2 skip $skip limit 10`
+            .replace("$userId", userId)
+            .replace("$skip", skip)
+        )
+        return response.records.map((item) => { return new UserMinimal(item.toObject().u2.properties) })
     }
+
+    static followUserMongoDB = async (myUserId, userId) => {
+        return await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: 1 }, $addToSet: { followedBy: ObjectId(myUserId) } })
+    }
+
+    static unfollowUserMongoDB = async (myUserId, userId) => {
+        try {
+            await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: -1 }, $pull: { followedBy: ObjectId(myUserId) } })
+            return true
+        } catch (error) {
+            console.log(error)
+            return false
+        }
+    }
+
+    static followUserNeo4j = async (myUserId, userId) => {
+        return await neo4jClient.run(`
+        MATCH (n:User {_id: "$myUserId"}) 
+        MATCH (m: User {_id: "$userId" }) 
+        CREATE (n)-[:FOLLOWS]->(m)`
+            .replace("$myUserId", myUserId)
+            .replace("$userId", userId))
+    }
+
+    static unfollowUserNeo4j = async (userId, entityId) => {
+        await neo4jClient.run(`MATCH (n:User {_id: "$userId"})-[r:FOLLOWS] ->(m: User { _id: "$entityId" }) delete r`
+            .replace("$userId", userId)
+            .replace("$entityId", entityId))
+    }
+
 
 
     static addReviewedEntity = async (userId, entityId) => {
@@ -66,6 +149,8 @@ class User extends RegisteredUser {
         this.mongoQueryBuilder.updateMany({ "likesEvents.start": { $lte: new Date() } }, { $pull: { likesEvents: { start: { $lte: new Date() } } } })
         console.log("Done")
     }
+
+
 }
 
 module.exports = { User }

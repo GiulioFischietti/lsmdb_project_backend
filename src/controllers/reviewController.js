@@ -70,7 +70,7 @@ const deleteReview = async (req, res) => {
 
         Entity.deleteReviewEmbedded(req.body.entityId, req.body.reviewId);
         Entity.deleteReviewedBy(req.body.entityId, req.body.userId)
-        
+
         await Review.deleteReview(req.body.reviewId);
         const avg = await Review.getAvgEntity(req.body.entityId)
         Entity.updateEntity(req.body.entityId, { "avgRate": avg })

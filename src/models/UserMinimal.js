@@ -5,6 +5,7 @@ class UserMinimal {
         if(data==null) return null
         this._id = new ObjectId(data._id);
         this.username = data.username;
+        this.name = data.name;
         this.image = data.image;
     }
 }

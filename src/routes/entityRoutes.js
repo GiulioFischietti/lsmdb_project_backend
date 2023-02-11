@@ -11,9 +11,12 @@ router.post('/unfollowentity', entityController.unfollowEntity)
 router.post('/loadentity', entityController.loadEntity)
 router.get('/entitybyid', entityController.entityById)
 router.get('/entitybyfacebook', entityController.entityByFacebook)
+router.post('/suggestedartists', entityController.getSuggestedArtistsForCooperation)
 router.get('/topratedentities', entityController.getTopRatedEntities)
 router.get('/entitybyname', entityController.entityByName)
 router.get('/entitieswithlocation', entityController.entitiesWithLocation)
 router.post('/search', entityController.searchEntities)
+router.get('/entityratebyyear', entityController.entityRateByYear)
+router.get('/mostusedwordsforclub', entityController.mostUsedWordsForClub)
 
 module.exports = router

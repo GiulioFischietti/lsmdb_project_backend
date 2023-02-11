@@ -20,6 +20,16 @@ class EntityMinimal {
             this.image = data.image;
         else data.image = "null"
 
+        if (data.avgRate != null)
+            this.avgRate = data.avgRate;
+       
+
+        if (data.score != null)
+            this.score = data.score;
+        
+        if(data.avgRate == null) delete this.avgRate;
+        if(data.score == null) delete this.score;
+
     }
 
     static entityByFacebookMinimal = async (facebookLink) => {

@@ -12,5 +12,6 @@ var driver = neo4jDriver.driver(
 const neo4jClient = driver.session();
 
 module.exports = {
-    neo4jClient
+    neo4jClient,
+    driver
 }

@@ -4,9 +4,16 @@ const userController = require('../controllers/userController');
 
 router.get('/userbyid', userController.userById)
 router.post('/edituser', userController.updateUser)
-router.post('/followentity', userController.followEntity)
-router.post('/unfollowentity', userController.unFollowEntity)
+router.post('/followuseronneo4j', userController.followUserOnNeo4j)
+router.post('/followuser', userController.followUser)
+router.post('/unfollowuser', userController.unfollowUser)
+router.post('/followers', userController.getFollowers)
+router.post('/suggestedfriendsofuser', userController.getSuggestedFriendsOfUser)
 router.post('/likeevent', userController.likeEvent)
 router.post('/dislikeevent', userController.dislikeEvent)
+router.get('/criticusers', userController.getCriticUsers)
+router.post('/suggestedfriendsbasedonlikes', userController.getSuggestedFriendsBasedOnLikes)
+router.post('/delete', userController.deleteUser)
+router.get('/all', userController.getAllUsers)
 
 module.exports = router
