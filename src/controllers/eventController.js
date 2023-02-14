@@ -227,41 +227,21 @@ const uploadEvent = async (req, res) => {
 
 const updateEvent = async (req, res) => {
     var { _id, ...event } = req.body
-    var analyticsUpdateSuccessful
-    var eventUpdateMongoSuccessful
-    var eventUpdateUpcomingSuccessful
-    var eventUpdateNeo4jSuccessful
-
+    
     var { _id, ...beforeState } = await Event.getEventById(_id)
     if (beforeState != null) {
         try {
-            // console.log(event)
-            // console.log("1")
-            analyticsUpdateSuccessful = await AnalyticsEvent.updateAnalyticsEventOnMongoDB(_id, event)
-            // console.log("2")
-            eventUpdateMongoSuccessful = await Event.updateEventOnMongoDB(_id, event)
-            // console.log("3")
-            eventUpdateUpcomingSuccessful = await Entity.updateUpcomingEvent(_id, event)
-            // console.log("neo4j...")
-            eventUpdateNeo4jSuccessful = await Event.updateEventOnNeo4j(_id, event)
-            // console.log("done")
-            res.status(200).send({ "success": true, "data": null })
+            await AnalyticsEvent.updateAnalyticsEventOnMongoDB(_id, event)
+            Event.updateEventOnMongoDB(_id, event)
+            Entity.updateUpcomingEvent(_id, event)
+            Event.updateEventOnNeo4j(_id, event)
+            res.status(200).send({ "success": true, "data": event })
         } catch (error) {
-            console.log("EXCEPTION OCCURRED, ROLLING BACK")
-            console.log(error)
-            if (analyticsUpdateSuccessful) {
-                await AnalyticsEvent.updateAnalyticsEventOnMongoDB(_id, beforeState)
-            }
-            if (eventUpdateMongoSuccessful) {
-                await Event.updateEventOnMongoDB(_id, beforeState)
-            }
-            if (eventUpdateUpcomingSuccessful) {
-                await Entity.updateUpcomingEvent(_id, beforeState)
-            }
-            if (eventUpdateNeo4jSuccessful) {
-                await Event.updateEventOnNeo4j(_id, beforeState)
-            }
-            res.status(200).send({ "success": false, "data": "Event not added" })
+            AnalyticsEvent.updateAnalyticsEventOnMongoDB(_id, beforeState)
+            Event.updateEventOnMongoDB(_id, beforeState)
+            Entity.updateUpcomingEvent(_id, beforeState)
+            Event.updateEventOnNeo4j(_id, beforeState)
+            res.status(200).send({ "success": false, "data": "Event not updated" })
         }
     }
     else {

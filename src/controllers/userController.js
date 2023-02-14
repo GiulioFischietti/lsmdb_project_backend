@@ -97,30 +97,17 @@ const followedEntitiesOnNeo4j = async (req, res) => {
 }
 
 const followUser = async (req, res) => {
-    var myIncSuccess;
-    var mongoFollowSuccess;
-    var neo4jFollowSuccess;
 
     try {
-        myIncSuccess = await User.increaseFollowingNumber(req.body.myUserId)
-        mongoFollowSuccess = await User.followUserMongoDB(req.body.myUserId, req.body.userId)
-        neo4jFollowSuccess = await User.followUserNeo4j(req.body.myUserId, req.body.userId)
+        await User.followUserMongoDB(req.body.myUserId, req.body.userId)
+        User.increaseFollowingNumber(req.body.myUserId)
+        User.followUserNeo4j(req.body.myUserId, req.body.userId)
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
-
-        if (myIncSuccess != null) {
-            await User.decreaseFollowingNumber(req.body.userId)
-            console.log("DECREASED NUMBER OF FOLLOWINGS")
-        }
-        if (mongoFollowSuccess != null) {
-            await User.unfollowUserMongoDB(req.body.myUserId, req.body.userId)
-            console.log("FOLLOW RELATION REMOVED FROM MONGODB")
-        }
-        if (neo4jFollowSuccess != null) {
-            await User.unfollowUserNeo4j(req.body.myUserId, req.body.userId)
-            console.log("FOLLOW RELATION REMOVED FROM NEO4J")
-        }
+        User.decreaseFollowingNumber(req.body.userId)
+        User.unfollowUserMongoDB(req.body.myUserId, req.body.userId)
+        User.unfollowUserNeo4j(req.body.myUserId, req.body.userId)
         res.status(200).send({ "success": false })
     }
 }

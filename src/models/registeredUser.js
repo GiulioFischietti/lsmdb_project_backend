@@ -29,18 +29,18 @@ class RegisteredUser {
     }
 
     static deleteUserNeo4j = async (userData) => {
-        return await neo4jClient.run(`MATCH (n:User {_id: "$_id"}) detach delete n`
+        return driver.session().run(`MATCH (n:User {_id: "$_id"}) detach delete n`
             .replace("$_id", userData._id)
         )
     }
     static getUserRelations = async (userId) => {
-        const response = await neo4jClient.run(`MATCH (n:User {_id: "$_id"})<-[r]->(m) return r,n,m`
+        const response = driver.session().run(`MATCH (n:User {_id: "$_id"})<-[r]->(m) return r,n,m`
             .replace("$_id", userId))
 
         return response.records.map((item)=>{return item.toObject()})
         
         // for (let i = 0; i < relations.length; i++) {
-        //     await neo4jClient.run(`MATCH (n:User {_id: "$_id"}) detach delete n`
+        //     driver.session().run(`MATCH (n:User {_id: "$_id"}) detach delete n`
         //         .replace("$_id", userData._id)
         //     )
         // }
@@ -49,7 +49,7 @@ class RegisteredUser {
     static recoverUserRelations = async (userId) => {
        
         for (let i = 0; i < relations.length; i++) {
-            await neo4jClient.run(`MATCH (n:User {_id: "$_id"}) detach delete n`
+            driver.session().run(`MATCH (n:User {_id: "$_id"}) detach delete n`
                 .replace("$_id", userData._id)
             )
         }
@@ -57,7 +57,7 @@ class RegisteredUser {
 
 
     static createUserNeo4j = async (userData) => {
-        return await neo4jClient.run(`CREATE (n:User {_id: "$_id", name: "$name", username: "$username", image: "$image"})`
+        return driver.session().run(`CREATE (n:User {_id: "$_id", name: "$name", username: "$username", image: "$image"})`
             .replace("$_id", userData._id)
             .replace("$name", userData.name)
             .replace("$username", userData.username)
@@ -66,7 +66,7 @@ class RegisteredUser {
     }
     
     static updateUserNeo4j = async (userData) => {
-        return await neo4jClient.run(`MATCH (n:User {_id: "$_id"}) set n.name = "$name", n.username = "$username", n.image = "$image" `
+        return driver.session().run(`MATCH (n:User {_id: "$_id"}) set n.name = "$name", n.username = "$username", n.image = "$image" `
             .replace("$_id", userData._id)
             .replace("$name", userData.name)
             .replace("$username", userData.username)

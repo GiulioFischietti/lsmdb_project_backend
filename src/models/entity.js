@@ -1,6 +1,6 @@
 const { ObjectId, Db } = require('mongodb');
 const { MongoCollection } = require('../config/mongoCollection');
-const { neo4jClient } = require('../config/neo4jDB');
+const { neo4jclient, driver } = require('../config/neo4jDB');
 const { EntityMinimal } = require('./entityMinimal');
 const { EventMinimal } = require('./EventMinimal');
 // const buildEntity = require('./entityBuilder')
@@ -47,7 +47,7 @@ class Entity {
 
 
     static updateEntityOnNeo4j = async (id, entity) => {
-        return await neo4jClient.run(`
+        return driver.session().run(`
             match(e:Entity {_id: "$id"})
             set e.name = "$name",
             e.image = "$image"`
@@ -101,7 +101,7 @@ class Entity {
     }
 
     static getSuggestedEntities = async (userId, skip) => {
-        const response = await neo4jClient.run(
+        const response = await driver.session().run(
             `MATCH (me:User{_id: "$userId"})-[f:FOLLOWS]->(u:User)-[l:FOLLOWS]->(e:Entity)
             WITH count(l) as followsCount, me , e
             ORDER BY followsCount desc
@@ -111,22 +111,22 @@ class Entity {
                 .replace("$skip", skip)
                 .replace("$userId", userId)
         )
-        return response.records.map((item) => { return new EventMinimal({ ...item.toObject().e.properties, "start": item.toObject().e.properties.date_start }) })
+        return response.records.map((item) => { return new EntityMinimal(item.toObject()) })
     }
 
     static getFollowers = async (entityId, skip) => {
-        const response = await neo4jClient.run(`match (e:Entity {_id: "$entityId"})<-[:FOLLOWS]-(u2:User) return u2 skip $skip limit 10`
+        const response = await driver.session().run(`match (e:Entity {_id: "$entityId"})<-[:FOLLOWS]-(u2:User) return u2 skip $skip limit 10`
             .replace("$entityId", entityId)
             .replace("$skip", skip)
         )
         return response.records.map((item) => { return new UserMinimal(item.toObject().u2.properties) })
     }
     static getSuggestedArtistsForCooperation = async (entityId, skip) => {
-        const response = await neo4jClient.run(`
-        match (c:Entity {_id: "$entityId"})-[h:ORGANIZES]->(e:Event)<-[org:ORGANIZES]-(o:Entity)
-        match (o)-[org2:ORGANIZES]->(e2: Event)<-[p:PLAYS_IN]-(a:Entity)
+        const response = await driver.session().run(`
+        match (c:Entity {_id: "$entityId"})-[h:ORGANIZES]->(e:Event)<-[org:ORGANIZES]-(o:Entity)-[org2:ORGANIZES]->(e2: Event)<-[p:PLAYS_IN]-(a:Entity)
+        
         where not exists ((c)-[:ORGANIZES]->(e2)<-[:PLAYS_IN]-(a)) and not exists ((c)-[:ORGANIZES]->(e)<-[:PLAYS_IN]-(a))
-        return a
+        return distinct(a)
         skip $skip
         limit 10`
             .replace("$entityId", entityId)
@@ -139,7 +139,7 @@ class Entity {
         var entitiesToUpdate = event.organizers.concat(event.artists)
         for (let i = 0; i < entitiesToUpdate.length; i++) {
             // console.log(entitiesToUpdate[i]._id)
-            await this.mongoCollection.updateOne({ _id: ObjectId(entitiesToUpdate[i]._id), "upcomingEvents._id": ObjectId(id) }, { $set: { "upcomingEvents.$": new EventMinimal(event) } })
+            this.mongoCollection.updateOne({ _id: ObjectId(entitiesToUpdate[i]._id), "upcomingEvents._id": ObjectId(id) }, { $set: { "upcomingEvents.$": new EventMinimal(event) } })
         }
         return true
     }
@@ -202,16 +202,16 @@ class Entity {
     }
 
     static followEntityMongoDB = async (entityId, userId) => {
-        console.log(entityId)
-        return await this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $inc: { nFollowers: 1 }, $push: { followedBy: ObjectId(userId) } },)
+        // console.log(entityId)
+        return this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $inc: { nFollowers: 1 }, $push: { followedBy: ObjectId(userId) } },)
     }
 
     static unfollowEntityMongoDB = async (entityId, userId) => {
-        return await this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $inc: { nFollowers: -1 }, $pull: { followedBy: ObjectId(userId) } },)
+        return this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $inc: { nFollowers: -1 }, $pull: { followedBy: ObjectId(userId) } },)
     }
 
     static followEntityNeo4j = async (userId, entityId) => {
-        return await neo4jClient.run(`MATCH (n:User {_id: "$userId"})
+        return driver.session().run(`MATCH (n:User {_id: "$userId"})
                  MATCH(m: Entity { _id: "$entityId" })
                  create(n) -[:FOLLOWS] -> (m)`
             .replace("$userId", userId)
@@ -219,7 +219,7 @@ class Entity {
     }
 
     static unfollowEntityNeo4j = async (userId, entityId) => {
-        return await neo4jClient.run(`MATCH (n:User {_id: "$userId"})-[r:FOLLOWS] ->(m: Entity { _id: "$entityId" }) delete r`
+        return driver.session().run(`MATCH (n:User {_id: "$userId"})-[r:FOLLOWS] ->(m: Entity { _id: "$entityId" }) delete r`
             .replace("$userId", userId)
             .replace("$entityId", entityId))
     }
@@ -277,7 +277,8 @@ class Entity {
     }
 
     static updateEntity = async (id, entity) => {
-        return await this.mongoCollection.updateOne({ _id: ObjectId(id) }, { $set: entity });
+        await this.mongoCollection.updateOne({ _id: ObjectId(id) }, { $set: entity });
+        return entity
     }
 
     static topRatedEntities = async (skip) => {

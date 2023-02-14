@@ -1,6 +1,6 @@
 const { EntityMinimal } = require("./entityMinimal");
 const { MongoCollection } = require("../config/mongoCollection");
-const { neo4jClient } = require("../config/neo4jDB")
+const { neo4jClient, driver } = require("../config/neo4jDB")
 const { ObjectId } = require("mongodb");
 const { EventMinimal } = require("./EventMinimal");
 const { EventToScrape } = require("./eventsToScrape");
@@ -54,16 +54,17 @@ class Event {
         if (this.likedBy == null) delete this.likedBy
         if (this.dist == null) delete this.dist
         if (this._id == null) delete this._id
+        if (this.image == null) delete this.image
     }
 
     static updateEmbeddedEntities = async (_id, entity) => {
-        await this.eventCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
-        await this.eventCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
-        await this.eventCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
+        this.eventCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
+        this.eventCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
+        this.eventCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
 
-        await this.analyticsEventsCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
-        await this.analyticsEventsCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
-        await this.analyticsEventsCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
+        this.analyticsEventsCollection.updateMany({ "club._id": ObjectId(_id) }, { $set: { "club.name": entity.name, "club.image": entity.image } })
+        this.analyticsEventsCollection.updateMany({ "organizers._id": ObjectId(_id) }, { $set: { "organizers.$.name": entity.name, "organizers.$.image": entity.image } })
+        this.analyticsEventsCollection.updateMany({ "artists._id": ObjectId(_id) }, { $set: { "artists.name.$": entity.name, "artists.image.$": entity.image, } })
         return true
     }
 
@@ -137,7 +138,7 @@ class Event {
 
 
     static likeEventOnNeo4j = async (eventId, userId) => {
-        return await neo4jClient.run(`
+        return driver.session().run(`
             MATCH (u:User {_id: "$userId"})
             MATCH (e:Event {_id: "$eventId"})
             CREATE (u)-[:LIKES]->(e)
@@ -147,7 +148,7 @@ class Event {
     }
 
     static dislikeEventOnNeo4j = async (eventId, userId) => {
-        return await neo4jClient.run(`
+        return driver.session().run(`
         MATCH (u:User {_id: "$userId"})-[l:LIKES]->(e:Event {_id: "$eventId"})
         DELETE l
         `.replace("$userId", userId)
@@ -156,14 +157,14 @@ class Event {
 
 
     static removePastLikesNeo4j = async () => {
-        await neo4jClient.run(`match (e:Event)<-[l:LIKES]-(u:User) where e.date_start < datetime() delete l`)
+        driver.session().run(`match (e:Event)<-[l:LIKES]-(u:User) where e.date_start < datetime() delete l`)
     }
 
 
     static deleteOldNeo4jEvents = async () => {
         var now = new Date()
         now.setFullYear(new Date().getFullYear - 1)
-        await neo4jClient.run(`match (e:Event) where e.date_start < datetime(` + now.toLocaleString() + `) delete e`);
+        driver.session().run(`match (e:Event) where e.date_start < datetime(` + now.toLocaleString() + `) delete e`);
     }
 
     static searchEvents = async (parameters, userId, skip) => {
@@ -187,7 +188,7 @@ class Event {
     }
 
     static updateEventOnMongoDB = async (id, event) => {
-        return await this.eventCollection.updateOne({ _id: ObjectId(id) }, { $set: new Event(event) })
+        return this.eventCollection.updateOne({ _id: ObjectId(id) }, { $set: new Event(event) })
     }
 
     static deleteEventOnMongoDB = async (id) => {
@@ -199,14 +200,14 @@ class Event {
     }
 
     static deleteAnalyticsEventOnNeo4j = async (id) => {
-        neo4jClient.run(`match(n: Event) where ID(n)=$id  detach delete n`
+        driver.session().run(`match(n: Event) where ID(n)=$id  detach delete n`
             .replace("$id", id)
         )
     }
 
     static updateEventOnNeo4j = async (id, event) => {
         var parsedArray = event.genres.map((item) => { return '"' + item + '"' })
-        return await neo4jClient.run(`
+        return driver.session().run(`
             match(e: Event {_id: "$id"})
             set e.name = "$name",
             e.genres = [$genres],
@@ -224,16 +225,28 @@ class Event {
     }
 
     static getSuggestedEvents = async (userId, skip) => {
-        const response = await neo4jClient.run(
+        const response = await driver.session().run(
             `MATCH (me:User{_id: "$userId"})-[f:FOLLOWS]->(u:User)-[l:LIKES]->(e:Event)
-            WITH count(l) as likesCount, me as me, e as e
-            ORDER BY likesCount desc
+            WITH me as me, e as e
+            ORDER BY e.date_start
             WHERE NOT EXISTS((me)-[:LIKES]->(e))
             RETURN e
             SKIP $skip LIMIT 10`
                 .replace("$skip", skip)
                 .replace("$userId", userId)
         )
+
+            //MATCH (me:User{_id: "638df65605393857c40b8942"})-[f:FOLLOWS]->(u:User)-[l:LIKES]->(e2:Event)
+            // WITH count(l) as commonLikesCount, me,e2,f,l,u
+            // ORDER BY commonLikesCount desc
+            // WHERE NOT EXISTS((me)-[:LIKES]->(e2))
+            // return e2, commonLikesCount
+            // union
+            // MATCH (me:User{_id: "638df65605393857c40b8945"})-[l1:LIKES]->(e1:Event)<-[l2:LIKES]-(u1:User)-[l3:LIKES]->(e2:Event)
+            // WHERE NOT EXISTS((me)-[l1]->(e2))
+            // WITH count(l2) as commonLikesCount, me,l1,e1,l2,u1,l3,e2
+            // RETURN e2, commonLikesCount ORDER BY commonLikesCount DESC LIMIT 100
+
         return response.records.map((item) => { return new EventMinimal({ ...item.toObject().e.properties, "start": item.toObject().e.properties.date_start }) })
     }
 
@@ -241,7 +254,7 @@ class Event {
         var response;
         var parsedArray = eventToAdd.genres.map((item) => { return '"' + item + '"' })
         if (eventToAdd.club != {} && eventToAdd.club != null) {
-            response = await neo4jClient.run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
+            response = driver.session().run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
                 MERGE(m: Entity { _id: "$entity_object_id", name: "$entity_name", image: "$entity_image", type: "$type" })
                 create(m) -[:HOSTS] -> (n) return ID(n)`
                 .replace("$object_id", eventToAdd._id)
@@ -259,7 +272,7 @@ class Event {
         }
 
         for (let i = 0; i < eventToAdd.organizers.length; i++) {
-            await neo4jClient.run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
+            driver.session().run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
             MERGE(m: Entity { _id: "$entity_object_id", name: "$entity_name", image: "$entity_image", type: "$type" })
             create(m) -[:ORGANIZES] -> (n)`
                 .replace("$object_id", eventToAdd._id)
@@ -277,7 +290,7 @@ class Event {
         }
 
         for (let i = 0; i < eventToAdd.artists.length; i++) {
-            await neo4jClient.run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
+            driver.session().run(`MERGE (n:Event {_id: "$object_id", name: "$name", address: "$address", image: "$image", date_start: datetime("$start"), genres: [$genres]})
             MERGE(m: Entity { _id: "$entity_object_id", name: "$entity_name", image: "$entity_image", type: "$type" })
             create(m) -[:PLAYS_IN] -> (n)`
                 .replace("$object_id", eventToAdd._id)

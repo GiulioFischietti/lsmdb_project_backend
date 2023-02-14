@@ -1,6 +1,6 @@
 const { EntityMinimal } = require("./entityMinimal");
 const { MongoCollection } = require("../config/mongoCollection");
-const { neo4jClient } = require("../config/neo4jDB")
+const { neo4jclient, driver } = require("../config/neo4jDB")
 const { ObjectId } = require("mongodb");
 const { EventMinimal } = require("./EventMinimal");
 
@@ -29,7 +29,7 @@ class AnalyticsEvent {
             this.end = new Date(data.end);
         this.genres = data.genres;
         this.facebook = data.facebook;
-        this.image = data.image;
+        this.image = data.image != null ? data.image : null;
         this.organizers = data.organizers.map((item) => new EntityMinimal(item));
         this.artists = data.artists.map((item) => new EntityMinimal(item));
         this.club = data.club != null ? new EntityMinimal(data.club) : {};
@@ -38,6 +38,7 @@ class AnalyticsEvent {
         this.createdAt = new Date()
 
         if (data._id == null) delete this._id
+        if (data.image == null) delete this.image
     }
 
     static variegatedClubs = async () => {
@@ -87,8 +88,7 @@ class AnalyticsEvent {
         },
         {
             $sort: {
-                eventsOrganized: -1,
-                nGenres: 1
+                nGenres: -1
             },
         },
         { $limit: 10 }

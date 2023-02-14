@@ -58,61 +58,36 @@ const updateEntityDateTime = async (req, res) => {
 }
 
 const followEntity = async (req, res) => {
-    var myIncSuccess;
-    var mongoFollowSuccess;
-    var neo4jFollowSuccess;
 
     try {
-        myIncSuccess = await User.increaseFollowingNumber(req.body.userId)
-        console.log(req.body)
-        mongoFollowSuccess = await Entity.followEntityMongoDB(req.body.entityId, req.body.userId);
-        neo4jFollowSuccess = await Entity.followEntityNeo4j(req.body.userId, req.body.entityId)
-        res.status(200).send({ "success": true, data: { "myIncSuccess": myIncSuccess, "mongoFollowSuccess": mongoFollowSuccess, "neo4jFollowSuccess": neo4jFollowSuccess } })
+        await Entity.followEntityMongoDB(req.body.entityId, req.body.userId);
+        User.increaseFollowingNumber(req.body.userId)
+        Entity.followEntityNeo4j(req.body.userId, req.body.entityId)
+        res.status(200).send({ "success": true })
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
         console.log(error)
-        if (myIncSuccess != null) {
-            await User.decreaseFollowingNumber(req.body.userId)
-            console.log("DECREASED NUMBER OF FOLLOWINGS")
-        }
-        if (mongoFollowSuccess != null) {
-            await Entity.unfollowEntityMongoDB(req.body.entityId, req.body.userId);
-            console.log("FOLLOW RELATION REMOVED FROM MONGODB")
-        }
-        if (neo4jFollowSuccess != null) {
-            await Entity.unfollowEntityNeo4j(req.body.userId, req.body.entityId)
-            console.log("FOLLOW RELATION REMOVED FROM NEO4J")
-        }
+        User.decreaseFollowingNumber(req.body.userId)
+        Entity.unfollowEntityMongoDB(req.body.entityId, req.body.userId);
+        Entity.unfollowEntityNeo4j(req.body.userId, req.body.entityId)
+
         res.status(200).send({ "success": false })
     }
 }
 
 
 const unfollowEntity = async (req, res) => {
-    var myDecSuccess;
-    var mongoUnfollowSuccess;
-    var neo4jUnfollowSuccess;
 
     try {
-        myDecSuccess = await User.decreaseFollowingNumber(req.body.userId)
-        mongoUnfollowSuccess = await Entity.unfollowEntityMongoDB(req.body.entityId, req.body.userId);
-        neo4jUnfollowSuccess = await Entity.unfollowEntityNeo4j(req.body.userId, req.body.entityId)
+        User.decreaseFollowingNumber(req.body.userId)
+        await Entity.unfollowEntityMongoDB(req.body.entityId, req.body.userId);
+        Entity.unfollowEntityNeo4j(req.body.userId, req.body.entityId)
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
-
-        if (myDecSuccess != null) {
-            await User.increaseFollowingNumber(req.body.userId)
-            console.log("INCREASED NUMBER OF FOLLOWINGS")
-        }
-        if (mongoUnfollowSuccess != null) {
-            await Entity.followEntityMongoDB(req.body.entityId, req.body.userId);
-            console.log("FOLLOW RELATION READDED FROM MONGODB")
-        }
-        if (neo4jUnfollowSuccess != null) {
-            await Entity.followEntityNeo4j(req.body.userId, req.body.entityId)
-            console.log("FOLLOW RELATION READDED FROM NEO4J")
-        }
+        User.increaseFollowingNumber(req.body.userId)
+        Entity.followEntityMongoDB(req.body.entityId, req.body.userId);
+        Entity.followEntityNeo4j(req.body.userId, req.body.entityId)
         res.status(200).send({ "success": false })
     }
 }
@@ -123,36 +98,19 @@ const updateEntity = async (req, res) => {
     var beforeState = await Entity.getEntityById(_id)
 
     try {
-        var updateEntityMongoDBSuccessful
-        var updateEmbeddedEntitiesSuccesful
-        var updateEmbeddedEntitySuccessful
-        var updateEntityNeo4j
 
-        console.log(1)
-        updateEntityMongoDBSuccessful = await Entity.updateEntity(ObjectId(_id), entity);
-        console.log(3)
-        updateEmbeddedEntitiesSuccesful = await Event.updateEmbeddedEntities(_id, new EntityMinimal(entity))
-        console.log(4)
-        updateEmbeddedEntitySuccessful = await Review.updateEmbeddedEntity(_id, new EntityMinimal(entity))
-        console.log("updating neo4j")
-        updateEntityNeo4j = await Entity.updateEntityOnNeo4j(_id, entity)
-        console.log("done")
-        res.status(200).send({ "success": true, data: null });
+        // own entity must be seen as updated, and eventually all others documents embedded and in neo4j 
+        const response = await Entity.updateEntity(ObjectId(_id), entity);
+        Event.updateEmbeddedEntities(_id, new EntityMinimal(entity))
+        Review.updateEmbeddedEntity(_id, new EntityMinimal(entity))
+        Entity.updateEntityOnNeo4j(_id, entity)
+        res.status(200).send({ "success": true, data: response });
     } catch (error) {
         console.log(error)
-        if (updateEntityMongoDBSuccessful) {
-            await Entity.updateEntity(ObjectId(_id), beforeState);
-        }
-        
-        if (updateEmbeddedEntitiesSuccesful) {
-            await Event.updateEmbeddedEntities(_id, new EntityMinimal(beforeState))
-        }
-        if (updateEmbeddedEntitySuccessful) {
-            await Review.updateEmbeddedEntity(_id, new EntityMinimal(beforeState))
-        }
-        if (updateEntityNeo4j) {
-            await Entity.updateEntityOnNeo4j(_id, beforeState)
-        }
+        Entity.updateEntity(ObjectId(_id), beforeState);
+        Event.updateEmbeddedEntities(_id, new EntityMinimal(beforeState))
+        Review.updateEmbeddedEntity(_id, new EntityMinimal(beforeState))
+        Entity.updateEntityOnNeo4j(_id, beforeState)
         res.status(500).send({ "success": false, data: null })
     }
 }
