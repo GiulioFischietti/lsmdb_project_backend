@@ -57,14 +57,22 @@ class RegisteredUser {
 
 
     static createUserNeo4j = async (userData) => {
-        return await neo4jClient.run(`CREATE (n:User {_id: "$_id, name: "$name", username: "$username", image: "$image"})`
+        return await neo4jClient.run(`CREATE (n:User {_id: "$_id", name: "$name", username: "$username", image: "$image"})`
             .replace("$_id", userData._id)
             .replace("$name", userData.name)
             .replace("$username", userData.username)
             .replace("$image", userData.image)
         )
     }
-
+    
+    static updateUserNeo4j = async (userData) => {
+        return await neo4jClient.run(`MATCH (n:User {_id: "$_id"}) set n.name = "$name", n.username = "$username", n.image = "$image" `
+            .replace("$_id", userData._id)
+            .replace("$name", userData.name)
+            .replace("$username", userData.username)
+            .replace("$image", userData.image)
+        )
+    }
 
 
     static userById = async (req) => {

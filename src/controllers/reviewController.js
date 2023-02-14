@@ -31,6 +31,7 @@ const addReviews = async (req, res) => {
 
 const addReview = async (req, res) => {
     try {
+        // console.log(req.body)
         const [reviewCreated, entityId] = await Review.createReview(req.body)
         Entity.addReviewEmbedded(reviewCreated, entityId);
         const avg = await Review.getAvgEntity(entityId)
@@ -70,11 +71,11 @@ const deleteReview = async (req, res) => {
 
         Entity.deleteReviewEmbedded(req.body.entityId, req.body.reviewId);
         Entity.deleteReviewedBy(req.body.entityId, req.body.userId)
-
-        await Review.deleteReview(req.body.reviewId);
+        console.log(req.body)
+        const reviewsToEmbed = await Review.deleteReview(req.body.entityId, req.body.reviewId);
+        Entity.setReviewsEmbedded(req.body.entityId, reviewsToEmbed);
         const avg = await Review.getAvgEntity(req.body.entityId)
         Entity.updateEntity(req.body.entityId, { "avgRate": avg })
-
 
         res.status(200).send({ "success": true, "data": { "avg": avg } })
     } catch (error) {

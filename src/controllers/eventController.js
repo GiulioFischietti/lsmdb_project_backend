@@ -76,7 +76,7 @@ const likeEvent = async (req, res) => {
     var incLikesSuccess;
 
     try {
-
+        console.log(req.body)
         likeMongoDBSuccess = await Event.likeEventOnMongoDB(req.body.eventId, req.body.userId);
         likeNeo4jSuccess = await Event.likeEventOnNeo4j(req.body.eventId, req.body.userId);
         incLikesSuccess = await User.increaseLikesNumber(req.body.userId)
@@ -180,6 +180,7 @@ const getSuggestedEvents = async (req, res) => {
 const uploadEvent = async (req, res) => {
 
     var { _id, ...eventJson } = req.body.data
+    eventJson.likedBy = []
     var eventToAdd = new Event(eventJson)
 
     const event = await Event.findEventByNameAndStart(eventToAdd)

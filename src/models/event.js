@@ -138,17 +138,20 @@ class Event {
 
     static likeEventOnNeo4j = async (eventId, userId) => {
         return await neo4jClient.run(`
-        MATCH (u:User {_id: "$userId"})
-        MATCH (e:Event {_id: "$eventId"})
-        CREATE (u)-[:LIKES]->(e)
-        `)
+            MATCH (u:User {_id: "$userId"})
+            MATCH (e:Event {_id: "$eventId"})
+            CREATE (u)-[:LIKES]->(e)
+            `.replace("$userId", userId)
+            .replace("$eventId", eventId))
+
     }
 
     static dislikeEventOnNeo4j = async (eventId, userId) => {
         return await neo4jClient.run(`
         MATCH (u:User {_id: "$userId"})-[l:LIKES]->(e:Event {_id: "$eventId"})
         DELETE l
-        `)
+        `.replace("$userId", userId)
+            .replace("$eventId", eventId))
     }
 
 
@@ -167,7 +170,7 @@ class Event {
         // db.events.aggregate([{$addFields: {liked: {$in: [ObjectId("638df65605393857c40b8941"), "$likedBy" ]} }}, {$limit: 10}])
         const response = await this.eventCollection.aggregate([parameters, { $addFields: { likedByUser: { $in: [ObjectId(userId), "$likedBy"] } } }, { $sort: { start: 1 } }, { $skip: skip }, { $limit: 5 }]).toArray()
         // console.log(response);
-        return response.map((item) => new Event(item))
+        return response.map((item) => new EventMinimal(item))
     }
 
     static findEventByNameAndStart = async (eventToAdd) => {

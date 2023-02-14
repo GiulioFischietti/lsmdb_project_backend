@@ -53,10 +53,10 @@ const signUpAsAManager = async (req, res) => {
             const hashedPassword = await bcrypt.hash(req.body.password, 10)
             req.body.password = hashedPassword
             var managedEntity = await Entity.entityByFacebook(req.body.facebookLink)
-            req.body.managedEntity = managedEntity
-            console.log(managedEntity);
+            req.body.managedEntity = managedEntity._id
+            console.log(req.body);
             const manager = new Manager(req.body)
-            Manager.createUser(manager)
+            Manager.createManager(manager)
             res.status(200).send({ success: true, data: manager });
         }
         else {
@@ -83,8 +83,9 @@ const usernameExists = async (req, res) => {
     }
 }
 const logIn = async (req, res) => {
+    console.log("user");
     const user = await RegisteredUser.getUserByUsername(req)
-
+    
     if (user._id != null) {
         try {
             if (await bcrypt.compare(req.body.password, user.password))

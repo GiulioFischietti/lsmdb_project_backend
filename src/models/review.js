@@ -52,12 +52,19 @@ class Review {
         return [reviewEdited, entityId]
     }
 
-    static deleteReview = async (reviewId) => {
-        this.mongoCollection.deleteOne({ _id: ObjectId(reviewId) })
+    static deleteReview = async (entityId, reviewId) => {
+        await this.mongoCollection.deleteOne({ _id: ObjectId(reviewId) });
+        const response = await Review.getReviewsOfEntity(entityId)
+        return response
     }
 
     static deleteReviewsOfUser = async (userId) => {
         this.mongoCollection.updateMany({ "user._id": ObjectId(userId) }, {$set: {username: "DeletedUser", image: "deleted user.png"}})
+    }
+
+    static getReviewsOfEntity = async (entityId) => {
+        const response = await this.mongoCollection.find({ "entity._id": ObjectId(entityId) }).sort({ createdAt: -1 }).limit(10).toArray()
+        return response.map((item) => { return new Review(item) });
     }
 
     static getReviewsById = async (reviewIds) => {
@@ -69,7 +76,7 @@ class Review {
     static getAvgEntity = async (_id) => {
         // console.log(_id)
         const response = await this.mongoCollection.aggregate([
-            { $match: { "entity._id": _id } },
+            { $match: { "entity._id": ObjectId(_id) } },
             { $group: { _id: "$entity._id", avgRate: { $avg: "$rate" } } }
         ]).toArray()
         // console.log(response[0])

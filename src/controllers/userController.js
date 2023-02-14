@@ -1,4 +1,5 @@
 const { Entity } = require('../models/entity');
+const { Event } = require('../models/event');
 const { RegisteredUser } = require('../models/registeredUser');
 const { Review } = require('../models/review');
 const { User } = require('../models/user');
@@ -50,12 +51,14 @@ const updateUser = async (req, res) => {
     var userUpdated
     var embeddedUserUpdated
     var embeddedEntityReviewUpdated
+    var userUpdatedNeo4j
     delete params._id;
-    // console.log(params)
     try {
         userUpdated = await RegisteredUser.updateUser(req.body._id, params)
         embeddedUserUpdated = await Review.updateEmbeddedUser(req.body._id, params)
         embeddedEntityReviewUpdated = await Entity.updateEmbeddedUserInEntity(req.body._id, params)
+        userUpdatedNeo4j = await RegisteredUser.updateUserNeo4j(req.body)
+
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
@@ -76,6 +79,16 @@ const updateUser = async (req, res) => {
 const followUserOnNeo4j = async (req, res) => {
     try {
         await User.followedUsersNeo4j(req.body.userId1, req.body.userIds)
+        res.status(200).send({ "success": true })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
+
+const followedEntitiesOnNeo4j = async (req, res) => {
+    try {
+        await User.followedEntitiesNeo4j(req.body.entityId, req.body.followers)
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log(error)
@@ -150,10 +163,28 @@ const getFollowers = async (req, res) => {
         res.status(500).send({ "success": false })
     }
 }
-
+const getFollowings = async (req, res) => {
+    try {
+        const response = await User.getFollowings(req.body.userId, req.body.skip)
+        res.status(200).send({ "success": true, data: response })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
 const getSuggestedFriendsOfUser = async (req, res) => {
     try {
         const response = await User.getSuggestedFriendsOfUser(req.body.userId, req.body.myUserId, req.body.skip)
+        res.status(200).send({ "success": true, data: response })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false })
+    }
+}
+
+const getLikedEvents = async (req, res) => {
+    try {
+        const response = await User.getLikedEvents(req.body.userId, req.body.skip)
         res.status(200).send({ "success": true, data: response })
     } catch (error) {
         console.log(error)
@@ -173,8 +204,8 @@ const getSuggestedFriendsBasedOnLikes = async (req, res) => {
 
 const likeEvent = async (req, res) => {
     try {
-        User.likeEvent(req.body.userId, req.body.eventId, req.body.start)
-        User.likeEventNeo4j(req.body.userId, req.body.eventId, req.body.start)
+        Event.likeEventOnMongoDB(req.body.eventId, req.body.userId)
+        Event.likeEventOnNeo4j(req.body.eventId, req.body.userId)
         res.status(200).send({ "success": true })
     } catch (error) {
         console.log(error)
@@ -252,9 +283,13 @@ module.exports = {
     getAllUsers,
     followUserOnNeo4j,
     followUser,
+    getFollowings,
     getFollowers,
+    getLikedEvents,
     getSuggestedFriendsOfUser,
     getSuggestedFriendsBasedOnLikes,
     unfollowUser,
-    deleteUser
+    deleteUser,
+
+    followedEntitiesOnNeo4j
 }

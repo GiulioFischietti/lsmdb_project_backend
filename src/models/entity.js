@@ -5,6 +5,7 @@ const { EntityMinimal } = require('./entityMinimal');
 const { EventMinimal } = require('./EventMinimal');
 // const buildEntity = require('./entityBuilder')
 const { Review } = require('./review');
+const { UserMinimal } = require('./UserMinimal');
 
 class Entity {
 
@@ -31,6 +32,7 @@ class Entity {
         this.followedBy = data.followedBy != null ? data.followedBy : [];
         this.reviewedBy = data.reviewedBy != null ? data.reviewedBy : [];
         this.nFollowers = data.nFollowers != null ? data.nFollowers : 0;
+        this.nReviews = data.nReviews != null ? data.nReviews : 0;
         this.loginNeeded = data.loginNeeded != null ? data.loginNeeded : false;
         this.facebookDescription = data.facebookDescription;
         this.websites = data.websites != null ? data.websites : [];
@@ -55,7 +57,13 @@ class Entity {
         )
     }
 
+    static all = async () => {
+        return await this.mongoCollection.find({ "followedBy.1": { $exists: true } }).toArray();
+    }
 
+    static setReviewsEmbedded = async (entityId, reviews) => {
+        this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $set: { "reviews": reviews } })
+    }
 
     static addReviewedBy = async (entityId, userId) => {
         this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $addToSet: { reviewedBy: ObjectId(userId) } });
@@ -106,6 +114,13 @@ class Entity {
         return response.records.map((item) => { return new EventMinimal({ ...item.toObject().e.properties, "start": item.toObject().e.properties.date_start }) })
     }
 
+    static getFollowers = async (entityId, skip) => {
+        const response = await neo4jClient.run(`match (e:Entity {_id: "$entityId"})<-[:FOLLOWS]-(u2:User) return u2 skip $skip limit 10`
+            .replace("$entityId", entityId)
+            .replace("$skip", skip)
+        )
+        return response.records.map((item) => { return new UserMinimal(item.toObject().u2.properties) })
+    }
     static getSuggestedArtistsForCooperation = async (entityId, skip) => {
         const response = await neo4jClient.run(`
         match (c:Entity {_id: "$entityId"})-[h:ORGANIZES]->(e:Event)<-[org:ORGANIZES]-(o:Entity)
@@ -223,8 +238,9 @@ class Entity {
     }
 
     static addReviewEmbedded = async (reviewToAdd, entityId) => {
-        await this.mongoCollection.updateOne({ _id: entityId }, { $push: { reviewIds: { $each: [reviewToAdd._id], $position: 0 }, reviews: { $each: [reviewToAdd], $position: 0 } } })
-        const entity = await this.mongoCollection.findOne({ _id: entityId })
+        // console.log("Adding embedded review in entity: " + entityId)
+        await this.mongoCollection.updateOne({ _id: entityId }, { $inc: { nReviews: 1 }, $push: { reviewIds: { $each: [reviewToAdd._id], $position: 0 }, reviews: { $each: [reviewToAdd], $position: 0 } } })
+        const entity = await this.mongoCollection.findOne({ _id: ObjectId(entityId) })
 
         if (entity.reviews.length > 10) {
             this.mongoCollection.updateOne({ _id: entityId }, { $pull: { reviews: entity.reviews[10] } })
@@ -250,8 +266,10 @@ class Entity {
 
     static deleteReviewEmbedded = async (entityId, reviewId) => {
         // console.log(entityId, reviewId, "aooo")
-        this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $pull: { "reviewIds": ObjectId(reviewId) } })
-        this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $pull: { "reviews": { "_id": ObjectId(reviewId) } } })
+        this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, {
+            $inc: { nReviews: -1 }, $pull: { "reviewIds": ObjectId(reviewId), "reviews": { "_id": ObjectId(reviewId) } }
+        })
+        // this.mongoCollection.updateOne({ _id: ObjectId(entityId) }, { $pull:  })
     }
 
     static updateEntityDateTime = async (id) => {

@@ -7,7 +7,7 @@ class Manager extends RegisteredUser {
     constructor(data) {
         super(data)
         if (data == null) return null
-        this.managedEntity = data.managedEntity
+        this.managedEntity = ObjectId(data.managedEntity)
         this.role = "manager"
     }
 

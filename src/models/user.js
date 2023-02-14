@@ -3,6 +3,7 @@ const { ObjectId } = require("mongodb");
 const { RegisteredUser } = require('./registeredUser');
 const { neo4jClient } = require('../config/neo4jDB');
 const { UserMinimal } = require('./UserMinimal');
+const { EventMinimal } = require('./EventMinimal');
 
 class User extends RegisteredUser {
     static mongoQueryBuilder = new MongoCollection({ collection: "users" })
@@ -17,14 +18,14 @@ class User extends RegisteredUser {
         this.nLikes = data.nLikes != null ? data.nLikes : 0
         this.nFollowings = data.nFollowings != null ? data.nFollowings : 0
     }
-    
+
     static createUserMongoDB = async (userData) => {
         userData.createdAt = new Date()
         userData.updatedAt = new Date()
         userData = new User(userData)
         const response = await this.mongoQueryBuilder.insertOne(userData)
         userData._id = response.insertedId
-        
+
         return userData
     }
 
@@ -80,7 +81,7 @@ class User extends RegisteredUser {
             `MATCH (me:User{_id: "$userId"})-[f:LIKES]->(e:Event)<-[l:LIKES]-(u:User)
             WITH count(l) as commonLikesCount, me,e,f,l,u
             ORDER BY commonLikesCount desc
-            WHERE NOT EXISTS((me)-[:FOLLOWS]->(e))
+            WHERE NOT EXISTS((me)-[:FOLLOWS]->(u))
             RETURN u
             skip $skip
             limit 10`
@@ -100,6 +101,27 @@ class User extends RegisteredUser {
             .replace("$followers", followers))
     }
 
+    static followedEntitiesNeo4j = async (entityId, followers) => {
+        followers = followers.map((item) => { return '"' + item + '"'; })
+
+        await neo4jClient.run(`unwind [$followers] as loop
+        match (n:User {_id: loop}), (m:Entity {_id: "$entityId"})  
+        create (n)-[:FOLLOWS]->(m);`
+            .replace("$entityId", entityId)
+            .replace("$followers", followers))
+    }
+
+    static getFollowings = async (userId, skip) => {
+        const response = await neo4jClient.run(`match (u1:User {_id: "$userId"})-[:FOLLOWS]->(u2) return u2 skip $skip limit 10`
+            .replace("$userId", userId)
+            .replace("$skip", skip)
+        )
+
+        return response.records.map((item) => { return ({ ... { "type": item.toObject().u2.labels[0].toLowerCase() }, ...item.toObject().u2.properties }) })
+        // return response.records.map((item) => { return new UserMinimal(item.toObject().u2.properties) })
+    }
+
+
     static getFollowers = async (userId, skip) => {
         const response = await neo4jClient.run(`match (u1:User {_id: "$userId"})<-[:FOLLOWS]-(u2:User) return u2 skip $skip limit 10`
             .replace("$userId", userId)
@@ -107,6 +129,16 @@ class User extends RegisteredUser {
         )
         return response.records.map((item) => { return new UserMinimal(item.toObject().u2.properties) })
     }
+
+    static getLikedEvents = async (userId, skip) => {
+        const response = await neo4jClient.run(`match (u1:User {_id: "$userId"})-[:LIKES]-(e:Event) return e order by e.date_start desc skip $skip limit 10`
+            .replace("$userId", userId)
+            .replace("$skip", skip)
+        )
+        
+        return response.records.map((item) => { return new EventMinimal({ ...item.toObject().e.properties, ...{ "start": item.toObject().e.properties.date_start } }) })
+    }
+
 
     static followUserMongoDB = async (myUserId, userId) => {
         return await this.mongoQueryBuilder.updateOne({ _id: ObjectId(userId) }, { $inc: { nFollowers: 1 }, $addToSet: { followedBy: ObjectId(myUserId) } })

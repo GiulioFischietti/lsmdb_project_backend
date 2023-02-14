@@ -19,6 +19,16 @@ const getAllClubs = async (req, res) => {
     }
 }
 
+const all = async (req, res) => {
+    try {
+        const response = await Entity.all();
+        res.status(200).send({ "success": true, data: response.map((item) => new Club(item)) })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
+
 const getEntitiesToUpdate = async (req, res) => {
     try {
         const response = await Entity.getEntitiesToUpdate();
@@ -114,15 +124,12 @@ const updateEntity = async (req, res) => {
 
     try {
         var updateEntityMongoDBSuccessful
-        var updateManagedEntitySuccessful
         var updateEmbeddedEntitiesSuccesful
         var updateEmbeddedEntitySuccessful
         var updateEntityNeo4j
 
         console.log(1)
         updateEntityMongoDBSuccessful = await Entity.updateEntity(ObjectId(_id), entity);
-        console.log(2)
-        updateManagedEntitySuccessful = await Manager.updateManagedEntity(ObjectId(req.body.userId), entity);
         console.log(3)
         updateEmbeddedEntitiesSuccesful = await Event.updateEmbeddedEntities(_id, new EntityMinimal(entity))
         console.log(4)
@@ -136,16 +143,14 @@ const updateEntity = async (req, res) => {
         if (updateEntityMongoDBSuccessful) {
             await Entity.updateEntity(ObjectId(_id), beforeState);
         }
-        if (updateManagedEntitySuccessful) {
-            await Entity.updateManagedEntity(ObjectId(req.body.userId), beforeState);
-        }
+        
         if (updateEmbeddedEntitiesSuccesful) {
             await Event.updateEmbeddedEntities(_id, new EntityMinimal(beforeState))
         }
-        if(updateEmbeddedEntitySuccessful) {
+        if (updateEmbeddedEntitySuccessful) {
             await Review.updateEmbeddedEntity(_id, new EntityMinimal(beforeState))
         }
-        if(updateEntityNeo4j) {
+        if (updateEntityNeo4j) {
             await Entity.updateEntityOnNeo4j(_id, beforeState)
         }
         res.status(500).send({ "success": false, data: null })
@@ -219,6 +224,16 @@ const getSuggestedArtistsForCooperation = async (req, res) => {
 const getSuggestedEntities = async (req, res) => {
     try {
         const response = await Entity.getSuggestedEntities(req.body.userId, req.body.skip)
+        res.status(200).send({ "success": true, "data": response })
+    } catch (error) {
+        console.log(error)
+        res.status(500).send({ "success": false, data: null })
+    }
+}
+
+const getFollowers = async (req, res) => {
+    try {
+        const response = await Entity.getFollowers(req.body.entityId, req.body.skip)
         res.status(200).send({ "success": true, "data": response })
     } catch (error) {
         console.log(error)
@@ -314,5 +329,7 @@ module.exports = {
     entityRateByYear,
     mostUsedWordsForClub,
     getSuggestedArtistsForCooperation,
-    getSuggestedEntities
+    getSuggestedEntities,
+    getFollowers,
+    all
 }

@@ -4,7 +4,9 @@ const entityController = require('../controllers/entityController');
 
 router.get('/getEntitiesToUpdate', entityController.getEntitiesToUpdate)
 router.get('/getallclubs', entityController.getAllClubs)
+router.get('/all', entityController.all)
 router.post('/updateentitydatetime', entityController.updateEntityDateTime)
+router.post('/followers', entityController.getFollowers)
 router.post('/updateentity', entityController.updateEntity)
 router.post('/followentity', entityController.followEntity)
 router.post('/unfollowentity', entityController.unfollowEntity)
