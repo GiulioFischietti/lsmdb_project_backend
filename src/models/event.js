@@ -164,7 +164,7 @@ class Event {
     static deleteOldNeo4jEvents = async () => {
         var now = new Date()
         now.setFullYear(new Date().getFullYear - 1)
-        driver.session().run(`match (e:Event) where e.date_start < datetime(` + now.toLocaleString() + `) delete e`);
+        driver.session().run(`match (e:Event) where e.date_start < datetime(` + now.toLocaleString() + `) detach delete e`);
     }
 
     static searchEvents = async (parameters, userId, skip) => {
@@ -225,27 +225,27 @@ class Event {
     }
 
     static getSuggestedEvents = async (userId, skip) => {
+        console.log("start query")
         const response = await driver.session().run(
             `MATCH (me:User{_id: "$userId"})-[f:FOLLOWS]->(u:User)-[l:LIKES]->(e:Event)
-            WITH me as me, e as e
-            ORDER BY e.date_start
             WHERE NOT EXISTS((me)-[:LIKES]->(e))
-            RETURN e
-            SKIP $skip LIMIT 10`
+            return e
+            ORDER BY e.date_start asc
+            limit 10`
                 .replace("$skip", skip)
                 .replace("$userId", userId)
         )
-
-            //MATCH (me:User{_id: "638df65605393857c40b8942"})-[f:FOLLOWS]->(u:User)-[l:LIKES]->(e2:Event)
-            // WITH count(l) as commonLikesCount, me,e2,f,l,u
-            // ORDER BY commonLikesCount desc
-            // WHERE NOT EXISTS((me)-[:LIKES]->(e2))
-            // return e2, commonLikesCount
-            // union
-            // MATCH (me:User{_id: "638df65605393857c40b8945"})-[l1:LIKES]->(e1:Event)<-[l2:LIKES]-(u1:User)-[l3:LIKES]->(e2:Event)
-            // WHERE NOT EXISTS((me)-[l1]->(e2))
-            // WITH count(l2) as commonLikesCount, me,l1,e1,l2,u1,l3,e2
-            // RETURN e2, commonLikesCount ORDER BY commonLikesCount DESC LIMIT 100
+        console.log("end query")
+        //MATCH (me:User{_id: "638df65605393857c40b8942"})-[f:FOLLOWS]->(u:User)-[l:LIKES]->(e2:Event)
+        // WITH count(l) as commonLikesCount, me,e2,f,l,u
+        // ORDER BY commonLikesCount desc
+        // WHERE NOT EXISTS((me)-[:LIKES]->(e2))
+        // return e2, commonLikesCount
+        // union
+        // MATCH (me:User{_id: "638df65605393857c40b8945"})-[l1:LIKES]->(e1:Event)<-[l2:LIKES]-(u1:User)-[l3:LIKES]->(e2:Event)
+        // WHERE NOT EXISTS((me)-[l1]->(e2))
+        // WITH count(l2) as commonLikesCount, me,l1,e1,l2,u1,l3,e2
+        // RETURN e2, commonLikesCount ORDER BY commonLikesCount DESC LIMIT 100
 
         return response.records.map((item) => { return new EventMinimal({ ...item.toObject().e.properties, "start": item.toObject().e.properties.date_start }) })
     }

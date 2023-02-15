@@ -32,5 +32,5 @@ app.use("/auth", authRouter)
 app.use("/review", reviewRouter)
 app.use("/user", userRouter)
 
-const dailyCronJob = nodeCron.schedule("0 11 16 * * *", async () => { Entity.updateUpcomingEvents(); Event.removePastLikesNeo4j(); });
+const dailyCronJob = nodeCron.schedule("0 32 12 * * *", async () => { Entity.updateUpcomingEvents(); Event.removePastLikesNeo4j(); });
 const monthlyCronJob = nodeCron.schedule("0 0 8 1 * *", async () => { Event.deleteOldNeo4jEvents(); });
