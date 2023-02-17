@@ -71,32 +71,24 @@ const likeEventsNeo4j = async (req, res) => {
 
 
 const likeEvent = async (req, res) => {
-    var likeMongoDBSuccess;
-    var likeNeo4jSuccess;
-    var incLikesSuccess;
-
+    
+    const {eventId, ...beforeStateEvent} = await Event.getEventById(req.body.eventId)
+    const {userId, ...beforeStateUser} = await User.getUserById(req.body.userId)
     try {
-        console.log(req.body)
-        likeMongoDBSuccess = await Event.likeEventOnMongoDB(req.body.eventId, req.body.userId);
-        likeNeo4jSuccess = await Event.likeEventOnNeo4j(req.body.eventId, req.body.userId);
-        incLikesSuccess = await User.increaseLikesNumber(req.body.userId)
+        // console.log(req.body)
+        await Event.likeEventOnMongoDB(req.body.eventId, req.body.userId);
+        await User.increaseLikesNumber(req.body.userId)
+        Event.likeEventOnNeo4j(req.body.eventId, req.body.userId);
+        
         res.status(200).send({ "success": true, "data": null })
 
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
         console.log(error)
-        if (likeMongoDBSuccess != null) {
-            await Event.dislikeEventOnMongoDB(req.body.eventId, req.body.userId);
-            console.log("DISLIKED EVENT ON MONGODB")
-        }
-        if (likeNeo4jSuccess != null) {
-            await Event.dislikeEventOnNeo4j(req.body.eventId, req.body.userId);
-            console.log("DISLIKED EVENT ON NEO4J")
-        }
-        if (incLikesSuccess != null) {
-            await User.decreaseLikesNumber(req.body.userId)
-            console.log("FOLLOW RELATION REMOVED FROM NEO4J")
-        }
+        Event.updateEventOnMongoDB(eventId, beforeStateEvent);
+        User.updateUser(userId, beforeStateUser)
+        Event.dislikeEventOnNeo4j(req.body.eventId, req.body.userId);
+        
         res.status(200).send({ "success": false })
     }
 }
@@ -104,32 +96,22 @@ const likeEvent = async (req, res) => {
 
 
 const dislikeEvent = async (req, res) => {
-    var dislikeMongoDBSuccess;
-    var dislikeNeo4jSuccess;
-    var decLikesSuccess;
+    const {eventId, ...beforeStateEvent} = await Event.getEventById(req.body.eventId)
+    const {userId, ...beforeStateUser} = await User.getUserById(req.body.userId)
 
     try {
-
-        dislikeMongoDBSuccess = await Event.dislikeEventOnMongoDB(req.body.eventId, req.body.userId);
-        dislikeNeo4jSuccess = await Event.dislikeEventOnNeo4j(req.body.eventId, req.body.userId);
-        decLikesSuccess = await User.decreaseLikesNumber(req.body.userId)
+        await Event.dislikeEventOnMongoDB(req.body.eventId, req.body.userId);
+        await User.decreaseLikesNumber(req.body.userId)
+        Event.dislikeEventOnNeo4j(req.body.eventId, req.body.userId);
         res.status(200).send({ "success": true, "data": null })
 
     } catch (error) {
         console.log("EXCEPTION OCCURRED, ROLLING BACK")
         console.log(error)
-        if (dislikeMongoDBSuccess != null) {
-            await Event.likeEventOnMongoDB(req.body.eventId, req.body.userId);
-            console.log("DISLIKED EVENT ON MONGODB")
-        }
-        if (dislikeNeo4jSuccess != null) {
-            await Event.likeEventOnNeo4j(req.body.eventId, req.body.userId);
-            console.log("DISLIKED EVENT ON NEO4J")
-        }
-        if (decLikesSuccess != null) {
-            await User.increaseLikesNumber(req.body.userId)
-            console.log("FOLLOW RELATION REMOVED FROM NEO4J")
-        }
+        Event.updateEventOnMongoDB(eventId, beforeStateEvent);
+        User.updateUser(userId, beforeStateUser)
+        Event.likeEventOnNeo4j(req.body.eventId, req.body.userId);
+        
         res.status(200).send({ "success": false })
     }
 }

@@ -9,6 +9,7 @@ class EventMinimal {
         this.genres = data.genres;
         this.image = data.image;
         this.address = data.address;
+        this.dist = data.dist;
     }
 }
 

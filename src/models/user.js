@@ -30,6 +30,11 @@ class User extends RegisteredUser {
     }
 
 
+    static getUserById = async (id) => {
+        const userResponse = await this.mongoQueryBuilder.find({_id: ObjectId(id)})
+        return new User(userResponse);
+    }
+
     static getAllUsers = async (skip, limit) => {
         return await this.mongoQueryBuilder.find({ followedBy: { $exists: true } }).skip(skip).limit(limit).toArray()
     }

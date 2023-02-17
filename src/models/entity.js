@@ -286,8 +286,8 @@ class Entity {
         const response = await this.mongoCollection.aggregate([
             {
                 $match: {
-                    "reviewIds.0": {
-                        $exists: true,
+                    "nReviews": {
+                        $gte: 1,
                     },
                 },
             },

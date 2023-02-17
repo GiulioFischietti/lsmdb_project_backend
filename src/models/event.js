@@ -231,6 +231,7 @@ class Event {
             WHERE NOT EXISTS((me)-[:LIKES]->(e))
             return e
             ORDER BY e.date_start asc
+            skip $skip
             limit 10`
                 .replace("$skip", skip)
                 .replace("$userId", userId)

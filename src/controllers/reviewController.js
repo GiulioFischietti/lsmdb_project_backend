@@ -36,6 +36,7 @@ const addReview = async (req, res) => {
         Entity.addReviewEmbedded(reviewCreated, entityId);
         const avg = await Review.getAvgEntity(entityId)
         Entity.updateEntity(entityId, { "avgRate": avg })
+        // console.log(avg)
         Entity.addReviewedBy(entityId, req.body.user._id)
         res.status(200).send({ "success": true, "data": { "avg": avg, "reviewId": reviewCreated._id } })
     } catch (error) {
