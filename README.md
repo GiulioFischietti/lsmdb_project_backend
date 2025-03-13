@@ -28,6 +28,8 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 - **Web Scraping**: Python-based scripts for continuous data collection  
 - **Distributed Database Design**: Sharding and replication for scalability  
 
+![MacBook Air - 1 (1) (1)](https://github.com/user-attachments/assets/eddca1a9-c956-4749-922c-addd6f9e0aef)
+
 ## **Database Design**  
 - **MongoDB**: Stores events, users, reviews, and analytics data.  
 - **Neo4j**: Manages social relationships, user interactions, and event recommendations.  
