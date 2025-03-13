@@ -23,7 +23,7 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 - **Backend**: Node.js (Express)  
 - **Frontend**: Flutter  
 - **Database Management Systems**:  
-  - **MongoDB** (NoSQL, document-based storage)  
+  - **MongoDB** (NoSQL, document-based storage) for great scalability and speed
   - **Neo4j** (Graph database for social and recommendation features)
 - **Web Scraping**: Python-based scripts for continuous data collection  
 - **Distributed Database Design**: Sharding and replication for scalability  
@@ -33,6 +33,14 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 ## **Database Design**  
 - **MongoDB**: Stores events, users, reviews, and analytics data.  
 - **Neo4j**: Manages social relationships, user interactions, and event recommendations.  
+
+![eventOrganizersGraph](https://github.com/user-attachments/assets/40115f55-4eb6-4407-8aa8-f1e33607f43d)
+
+
+## **Data Model**
+ - Relational data model
+![umlclassdiagram](https://github.com/user-attachments/assets/5cc85b53-db85-489a-82e6-2c4beb4c77bc)
+
 
 ## **Analytics & Insights**  
 EventinZona leverages MongoDB and Neo4j to perform advanced analytics, providing valuable insights into event trends, user behaviors, and entity interactions. Key analytics include:  
