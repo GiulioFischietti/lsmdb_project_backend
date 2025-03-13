@@ -33,3 +33,12 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 ## **Database Design**  
 - **MongoDB**: Stores events, users, reviews, and analytics data.  
 - **Neo4j**: Manages social relationships, user interactions, and event recommendations.  
+
+## **Analytics & Insights**  
+EventinZona leverages MongoDB and Neo4j to perform advanced analytics, providing valuable insights into event trends, user behaviors, and entity interactions. Key analytics include:  
+- **User Rating Analysis**: Identifies the most critical users based on review patterns and ratings.  
+- **Entity Performance Metrics**: Evaluates clubs, organizers, and artists using aggregated ratings and user engagement.  
+- **Event Popularity Trends**: Analyzes event attendance and user interactions to highlight trending events.  
+- **Recommendation System**: Suggests friends, artists, and event collaborations based on user behavior and common interactions.  
+- **Review Word Analysis**: Extracts the most frequently used words in user reviews to generate qualitative insights on clubs and events.  
+- **Historical Performance Analysis**: Tracks rating trends for entities over time to assess growth and popularity changes.  
