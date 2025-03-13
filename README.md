@@ -24,8 +24,7 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 - **Frontend**: Flutter  
 - **Database Management Systems**:  
   - **MongoDB** (NoSQL, document-based storage)  
-  - **Neo4j** (Graph database for social and recommendation features)  
-- **Machine Learning & NLP**: Used for data analysis and recommendations  
+  - **Neo4j** (Graph database for social and recommendation features)
 - **Web Scraping**: Python-based scripts for continuous data collection  
 - **Distributed Database Design**: Sharding and replication for scalability  
 
