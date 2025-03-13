@@ -44,6 +44,7 @@ EventinZona provides users with real-time event recommendations, reviews, and so
 
 ## **Analytics & Insights**  
 ![image](https://github.com/user-attachments/assets/b3b351be-6615-4cc5-9123-0bee2ae0eaf5)
+
 EventinZona leverages MongoDB and Neo4j to perform advanced analytics, providing valuable insights into event trends, user behaviors, and entity interactions. Key analytics include:  
 - **User Rating Analysis**: Identifies the most critical users based on review patterns and ratings.  
 - **Entity Performance Metrics**: Evaluates clubs, organizers, and artists using aggregated ratings and user engagement.  
