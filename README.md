@@ -1,6 +1,8 @@
 # **EventinZona**  
 A mobile application for discovering and managing local music and party events, integrating web scraping, data analysis, and recommendation systems.  
 
+App Video Demo: https://drive.google.com/file/d/1BHyK2A-uin02X9XYLjEPqV7N6B_5o-EX/view?usp=drive_link
+
 ## **Overview**  
 EventinZona provides users with real-time event recommendations, reviews, and social features, while offering event organizers and clubs analytics and promotional tools.  
 
